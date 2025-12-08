@@ -1,0 +1,404 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption } from '@/lib/storage';
+import { loadConversions } from '@/lib/conversions';
+
+export default function AdminPage() {
+  const router = useRouter();
+  const [points, setPoints] = useState(0);
+  const [transactions, setTransactions] = useState<PointTransaction[]>([]);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [showConversions, setShowConversions] = useState(false);
+  const [conversions, setConversions] = useState<ConversionOption[]>([]);
+  const [showAddConversion, setShowAddConversion] = useState(false);
+  const [newConversion, setNewConversion] = useState({
+    name: '',
+    description: '',
+    pointsRequired: '',
+    emoji: '',
+    category: 'money' as 'money' | 'activity' | 'gift',
+  });
+
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    if (role !== 'admin') {
+      router.push('/');
+      return;
+    }
+    loadData();
+  }, [router]);
+
+  const loadData = () => {
+    const data = getPointsData();
+    setPoints(data.totalPoints);
+    setTransactions(data.transactions.sort((a, b) => b.timestamp - a.timestamp));
+    const loadedConversions = loadConversions();
+    setConversions(loadedConversions);
+  };
+
+  const handleAddPoints = () => {
+    const pointsToAdd = parseInt(amount);
+    if (pointsToAdd > 0 && reason.trim()) {
+      addPoints(pointsToAdd, reason);
+      setAmount('');
+      setReason('');
+      loadData();
+    }
+  };
+
+  const handleRemovePoints = () => {
+    const pointsToRemove = parseInt(amount);
+    if (pointsToRemove > 0 && reason.trim()) {
+      removePoints(pointsToRemove, reason);
+      setAmount('');
+      setReason('');
+      loadData();
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('userRole');
+    router.push('/');
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const handleAddConversion = () => {
+    if (
+      newConversion.name.trim() &&
+      newConversion.description.trim() &&
+      newConversion.pointsRequired &&
+      parseInt(newConversion.pointsRequired) > 0 &&
+      newConversion.emoji.trim()
+    ) {
+      const conversion: ConversionOption = {
+        id: Date.now().toString(),
+        name: newConversion.name,
+        description: newConversion.description,
+        pointsRequired: parseInt(newConversion.pointsRequired),
+        emoji: newConversion.emoji,
+        category: newConversion.category,
+      };
+      addConversion(conversion);
+      setNewConversion({
+        name: '',
+        description: '',
+        pointsRequired: '',
+        emoji: '',
+        category: 'money',
+      });
+      setShowAddConversion(false);
+      loadData();
+    }
+  };
+
+  const handleDeleteConversion = (id: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette conversion ?')) {
+      deleteConversion(id);
+      loadData();
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-red-500 to-pink-500 bg-clip-text text-transparent">
+            🛡️ Mode Admin
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            Déconnexion
+          </button>
+        </div>
+
+        {/* Points Display */}
+        <div className="bg-gradient-to-br from-purple-400 to-pink-400 rounded-3xl p-8 mb-8 shadow-2xl text-center animate-pulse-glow">
+          <div className="text-white">
+            <p className="text-2xl mb-2">Points totaux de Lana</p>
+            <p className="text-7xl md:text-9xl font-bold">{points}</p>
+            <div className="flex justify-center gap-4 mt-4">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
+              >
+                <History className="w-5 h-5" />
+                Historique
+              </button>
+              <button
+                onClick={() => setShowConversions(!showConversions)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
+              >
+                <Gift className="w-5 h-5" />
+                Conversions
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* History Panel */}
+        {showHistory && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <h2 className="text-2xl font-bold mb-4">Historique des transactions</h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {transactions.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Aucune transaction pour le moment</p>
+              ) : (
+                transactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className={`flex items-center justify-between p-4 rounded-xl ${
+                      transaction.type === 'add' ? 'bg-green-50' : 'bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {transaction.type === 'add' ? (
+                        <TrendingUp className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <TrendingDown className="w-6 h-6 text-red-600" />
+                      )}
+                      <div>
+                        <p className="font-semibold">{transaction.reason}</p>
+                        <p className="text-sm text-gray-500">{formatDate(transaction.timestamp)}</p>
+                      </div>
+                    </div>
+                    <p
+                      className={`text-xl font-bold ${
+                        transaction.type === 'add' ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {transaction.type === 'add' ? '+' : '-'}{transaction.amount}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Conversions Panel */}
+        {showConversions && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Gestion des conversions</h2>
+              <button
+                onClick={() => setShowAddConversion(!showAddConversion)}
+                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter une conversion
+              </button>
+            </div>
+
+            {/* Add Conversion Form */}
+            {showAddConversion && (
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl p-6 mb-6 border-2 border-purple-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-800">Nouvelle conversion</h3>
+                  <button
+                    onClick={() => setShowAddConversion(false)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={newConversion.name}
+                      onChange={(e) => setNewConversion({ ...newConversion, name: e.target.value })}
+                      placeholder="Ex: 1€ d'argent de poche"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Emoji</label>
+                    <input
+                      type="text"
+                      value={newConversion.emoji}
+                      onChange={(e) => setNewConversion({ ...newConversion, emoji: e.target.value })}
+                      placeholder="Ex: 💰"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-purple-500 focus:outline-none text-2xl"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Points requis</label>
+                    <input
+                      type="number"
+                      value={newConversion.pointsRequired}
+                      onChange={(e) => setNewConversion({ ...newConversion, pointsRequired: e.target.value })}
+                      placeholder="Ex: 10"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-purple-500 focus:outline-none"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Catégorie</label>
+                    <select
+                      value={newConversion.category}
+                      onChange={(e) => setNewConversion({ ...newConversion, category: e.target.value as 'money' | 'activity' | 'gift' })}
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-purple-500 focus:outline-none"
+                    >
+                      <option value="money">💰 Argent</option>
+                      <option value="activity">⭐ Sortie</option>
+                      <option value="gift">🎁 Cadeau</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-700 font-semibold mb-2">Description</label>
+                    <input
+                      type="text"
+                      value={newConversion.description}
+                      onChange={(e) => setNewConversion({ ...newConversion, description: e.target.value })}
+                      placeholder="Ex: Échange tes points contre de l'argent !"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleAddConversion}
+                  className="mt-4 w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105"
+                >
+                  Créer la conversion ✨
+                </button>
+              </div>
+            )}
+
+            {/* Conversions List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {conversions.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Aucune conversion pour le moment</p>
+              ) : (
+                conversions.map((conversion) => (
+                  <div
+                    key={conversion.id}
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl">{conversion.emoji}</div>
+                      <div>
+                        <p className="font-bold text-lg text-gray-800">{conversion.name}</p>
+                        <p className="text-sm text-gray-600">{conversion.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm font-semibold text-purple-600">
+                            {conversion.pointsRequired} points
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            • {conversion.category === 'money' ? '💰 Argent' : conversion.category === 'activity' ? '⭐ Sortie' : '🎁 Cadeau'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteConversion(conversion.id)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      Supprimer
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Add Points */}
+          <div className="bg-gradient-to-br from-green-400 to-emerald-500 rounded-2xl p-6 shadow-xl">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Plus className="w-6 h-6" />
+              Ajouter des points
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white font-semibold mb-2">Nombre de points</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Ex: 10"
+                  className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
+                />
+              </div>
+              <div>
+                <label className="block text-white font-semibold mb-2">Raison</label>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Ex: Aide aux tâches ménagères"
+                  className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
+                />
+              </div>
+              <button
+                onClick={handleAddPoints}
+                className="w-full bg-white text-green-600 py-3 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105"
+              >
+                Ajouter ✨
+              </button>
+            </div>
+          </div>
+
+          {/* Remove Points */}
+          <div className="bg-gradient-to-br from-red-400 to-pink-500 rounded-2xl p-6 shadow-xl">
+            <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Minus className="w-6 h-6" />
+              Enlever des points
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white font-semibold mb-2">Nombre de points</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Ex: 5"
+                  className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
+                />
+              </div>
+              <div>
+                <label className="block text-white font-semibold mb-2">Raison</label>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Ex: Chambre non rangée"
+                  className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
+                />
+              </div>
+              <button
+                onClick={handleRemovePoints}
+                className="w-full bg-white text-red-600 py-3 rounded-xl font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105"
+              >
+                Enlever ⚠️
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
