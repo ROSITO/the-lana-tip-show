@@ -5,9 +5,19 @@ Une application web funky et colorée pour gérer les points de Lana, déployabl
 ## 🎯 Fonctionnalités
 
 - **Mode Admin** : Distribuer et enlever des points avec des raisons
+  - 🔐 **Protégé par mot de passe** (mot de passe par défaut : `admin123`)
+  - Gestion des conversions (créer/supprimer)
+  - Historique des transactions
+  - Possibilité de changer le mot de passe
 - **Mode Enfant** : Consulter ses points et voir les conversions possibles
 - **Système de conversion** : Échanger des points contre de l'argent de poche, des sorties ou des cadeaux
 - **Interface colorée** : Design funky et simple pour une navigation facile
+
+## 🔐 Accès Admin
+
+**Mot de passe par défaut : `admin123`**
+
+⚠️ **Important** : Changez le mot de passe dès la première connexion depuis l'interface admin (bouton "Mot de passe").
 
 ## 🚀 Démarrage
 

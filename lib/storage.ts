@@ -24,6 +24,10 @@ export interface ConversionOption {
 
 const STORAGE_KEY = 'lana_points_data';
 const CONVERSIONS_STORAGE_KEY = 'lana_conversions_data';
+const ADMIN_PASSWORD_KEY = 'lana_admin_password';
+
+// Mot de passe admin par défaut (peut être changé depuis l'interface admin)
+const DEFAULT_ADMIN_PASSWORD = 'admin123';
 
 export function getPointsData(): PointsData {
   if (typeof window === 'undefined') {
@@ -98,5 +102,31 @@ export function deleteConversion(conversionId: string): void {
   const conversions = getConversions();
   const filtered = conversions.filter(c => c.id !== conversionId);
   saveConversions(filtered);
+}
+
+// Gestion du mot de passe admin
+export function getAdminPassword(): string {
+  if (typeof window === 'undefined') {
+    return DEFAULT_ADMIN_PASSWORD;
+  }
+  
+  const stored = localStorage.getItem(ADMIN_PASSWORD_KEY);
+  if (stored) {
+    return stored;
+  }
+  
+  // Initialiser avec le mot de passe par défaut
+  localStorage.setItem(ADMIN_PASSWORD_KEY, DEFAULT_ADMIN_PASSWORD);
+  return DEFAULT_ADMIN_PASSWORD;
+}
+
+export function setAdminPassword(password: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(ADMIN_PASSWORD_KEY, password);
+}
+
+export function verifyAdminPassword(password: string): boolean {
+  const correctPassword = getAdminPassword();
+  return password === correctPassword;
 }
 

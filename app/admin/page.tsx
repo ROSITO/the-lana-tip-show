@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption } from '@/lib/storage';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword } from '@/lib/storage';
 import { loadConversions } from '@/lib/conversions';
 
 export default function AdminPage() {
@@ -23,6 +23,11 @@ export default function AdminPage() {
     emoji: '',
     category: 'money' as 'money' | 'activity' | 'gift',
   });
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -112,6 +117,32 @@ export default function AdminPage() {
     }
   };
 
+  const handleChangePassword = () => {
+    setPasswordError('');
+    
+    if (newPassword.length < 4) {
+      setPasswordError('Le mot de passe doit contenir au moins 4 caractères');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas');
+      return;
+    }
+    
+    if (!verifyAdminPassword(currentPassword)) {
+      setPasswordError('Mot de passe actuel incorrect');
+      return;
+    }
+    
+    setAdminPassword(newPassword);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPasswordChange(false);
+    alert('✅ Mot de passe changé avec succès !');
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -134,7 +165,7 @@ export default function AdminPage() {
           <div className="text-white">
             <p className="text-2xl mb-2">Points totaux de Lana</p>
             <p className="text-7xl md:text-9xl font-bold">{points}</p>
-            <div className="flex justify-center gap-4 mt-4">
+            <div className="flex justify-center gap-4 mt-4 flex-wrap">
               <button
                 onClick={() => setShowHistory(!showHistory)}
                 className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
@@ -148,6 +179,13 @@ export default function AdminPage() {
               >
                 <Gift className="w-5 h-5" />
                 Conversions
+              </button>
+              <button
+                onClick={() => setShowPasswordChange(!showPasswordChange)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
+              >
+                <Key className="w-5 h-5" />
+                Mot de passe
               </button>
             </div>
           </div>
@@ -319,6 +357,79 @@ export default function AdminPage() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Password Change Panel */}
+        {showPasswordChange && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Changer le mot de passe admin</h2>
+              <button
+                onClick={() => {
+                  setShowPasswordChange(false);
+                  setPasswordError('');
+                  setCurrentPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="text-gray-600 hover:text-gray-800"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Mot de passe actuel</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setPasswordError('');
+                  }}
+                  placeholder="Entrez le mot de passe actuel"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-red-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    setPasswordError('');
+                  }}
+                  placeholder="Au moins 4 caractères"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-red-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Confirmer le nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setPasswordError('');
+                  }}
+                  placeholder="Retapez le nouveau mot de passe"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-300 focus:border-red-500 focus:outline-none"
+                />
+              </div>
+              {passwordError && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                  <p className="text-red-600 font-semibold">❌ {passwordError}</p>
+                </div>
+              )}
+              <button
+                onClick={handleChangePassword}
+                className="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg hover:from-red-600 hover:to-pink-600 transition-all transform hover:scale-105"
+              >
+                Changer le mot de passe 🔐
+              </button>
             </div>
           </div>
         )}
