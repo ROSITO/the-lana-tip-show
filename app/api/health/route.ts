@@ -62,11 +62,14 @@ export async function GET() {
       errorMessage = 'Erreur d\'authentification à la base de données';
       errorType = 'auth_error';
     } else if (error.message?.includes('ENOTFOUND') || error.message?.includes('ECONNREFUSED')) {
-      errorMessage = 'Impossible de se connecter à la base de données. Vérifiez les variables d\'environnement POSTGRES_URL.';
+      errorMessage = 'Impossible de se connecter à la base de données. Vérifiez les variables d\'environnement POSTGRES_URL ou lana_POSTGRES_URL.';
       errorType = 'connection_error';
     } else if (error.message?.includes('P1001') || error.message?.includes('Can\'t reach database')) {
-      errorMessage = 'Impossible d\'atteindre la base de données. Vérifiez POSTGRES_URL.';
+      errorMessage = 'Impossible d\'atteindre la base de données. Vérifiez POSTGRES_URL ou lana_POSTGRES_URL.';
       errorType = 'connection_error';
+    } else if (error.message?.includes('P1000') || error.message?.includes('Authentication failed')) {
+      errorMessage = 'Erreur d\'authentification. Vérifiez que votre URL de connexion est correcte.';
+      errorType = 'auth_error';
     }
     
     return NextResponse.json({
