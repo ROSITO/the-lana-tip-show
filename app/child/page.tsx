@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Gift, Coins, Star } from 'lucide-react';
+import { Sparkles, Gift, Coins, Star, Home } from 'lucide-react';
 import { getPointsData } from '@/lib/storage';
 import { loadConversions, getConversionsByCategory, type ConversionOption } from '@/lib/conversions';
 
@@ -45,6 +45,11 @@ export default function ChildPage() {
     setConversions(loadedConversions);
   };
 
+  const handleGoHome = () => {
+    localStorage.removeItem('userRole');
+    router.push('/');
+  };
+
   const filteredOptions = selectedCategory === 'all' 
     ? conversions 
     : conversions.filter(opt => opt.category === selectedCategory);
@@ -57,7 +62,14 @@ export default function ChildPage() {
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 relative">
+          <button
+            onClick={handleGoHome}
+            className="absolute top-0 left-0 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold flex items-center gap-2 transition-all"
+          >
+            <Home className="w-5 h-5" />
+            Accueil
+          </button>
           <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent mb-4">
             ✨ Salut Lana ! ✨
           </h1>

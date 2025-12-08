@@ -12,13 +12,8 @@ export default function Home() {
   const [adminPassword, setAdminPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
 
-  useEffect(() => {
-    // Vérifier si un rôle est déjà sélectionné
-    const savedRole = localStorage.getItem('userRole');
-    if (savedRole === 'admin' || savedRole === 'child') {
-      router.push(`/${savedRole}`);
-    }
-  }, [router]);
+  // Ne pas rediriger automatiquement - laisser l'utilisateur choisir son mode
+  // Si l'utilisateur veut revenir à la page d'accueil, il peut se déconnecter depuis admin/child
 
   const handleRoleSelection = (role: 'admin' | 'child') => {
     if (role === 'admin') {
