@@ -60,6 +60,8 @@ export default function AdminPage() {
 
   const handleRemovePoints = () => {
     const pointsToRemove = parseInt(removeAmount);
+    // Accepter n'importe quelle valeur non-nulle (positive ou négative)
+    // La fonction removePoints gérera la valeur absolue
     if (!isNaN(pointsToRemove) && pointsToRemove !== 0 && removeReason.trim()) {
       removePoints(pointsToRemove, removeReason);
       setRemoveAmount('');

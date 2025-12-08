@@ -62,11 +62,14 @@ export function addPoints(amount: number, reason: string): void {
 
 export function removePoints(amount: number, reason: string): void {
   const data = getPointsData();
-  data.totalPoints = data.totalPoints - amount; // Permet les valeurs négatives
+  // Toujours soustraire la valeur absolue pour enlever des points
+  // Si amount est négatif, on prend sa valeur absolue pour enlever quand même
+  const pointsToRemove = Math.abs(amount);
+  data.totalPoints = data.totalPoints - pointsToRemove; // Permet les valeurs négatives après soustraction
   data.transactions.push({
     id: Date.now().toString(),
     type: 'remove',
-    amount,
+    amount: pointsToRemove,
     reason,
     timestamp: Date.now(),
   });
