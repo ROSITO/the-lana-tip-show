@@ -4,16 +4,23 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:init": "tsx scripts/init-db.ts"
   },
   "dependencies": {
     "next": "14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "lucide-react": "^0.424.0",
-    "@vercel/postgres": "^0.10.0"
+    "@prisma/client": "^5.9.1",
+    "prisma": "^5.9.1"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
@@ -22,7 +29,8 @@
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.7",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "tsx": "^4.7.1"
   }
 }
 

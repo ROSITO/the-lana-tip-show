@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { prisma } from '@/lib/prisma';
 import { initDatabase } from '@/lib/db';
 
 // GET - Récupérer les conversions
@@ -8,28 +8,25 @@ export async function GET() {
     try {
       await initDatabase();
     } catch (initError: any) {
-      if (!initError.message?.includes('already exists')) {
-        console.error('Erreur init database:', initError);
+      if (initError.message?.includes('migrate')) {
         return NextResponse.json({ 
-          error: 'Erreur d\'initialisation de la base de données',
-          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+          error: 'Les tables n\'existent pas encore',
+          hint: 'Exécutez: npx prisma migrate dev'
         }, { status: 500 });
       }
     }
     
-    const result = await sql`
-      SELECT id, name, description, points_required, emoji, category
-      FROM conversions 
-      ORDER BY created_at ASC
-    `;
+    const conversions = await prisma.conversion.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
 
-    return NextResponse.json(result.rows.map(row => ({
-      id: row.id.toString(),
-      name: row.name,
-      description: row.description,
-      pointsRequired: row.points_required,
-      emoji: row.emoji,
-      category: row.category
+    return NextResponse.json(conversions.map(c => ({
+      id: c.id.toString(),
+      name: c.name,
+      description: c.description,
+      pointsRequired: c.pointsRequired,
+      emoji: c.emoji,
+      category: c.category
     })));
   } catch (error: any) {
     console.error('Erreur API conversions:', error);
@@ -52,26 +49,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 });
     }
 
-    const result = await sql`
-      INSERT INTO conversions (name, description, points_required, emoji, category)
-      VALUES (${name}, ${description}, ${parseInt(pointsRequired)}, ${emoji}, ${category})
-      RETURNING id, name, description, points_required, emoji, category
-    `;
+    const conversion = await prisma.conversion.create({
+      data: {
+        name,
+        description,
+        pointsRequired: parseInt(pointsRequired),
+        emoji,
+        category: category as 'money' | 'activity' | 'gift'
+      }
+    });
 
     return NextResponse.json({ 
       success: true, 
       data: {
-        id: result.rows[0].id.toString(),
-        name: result.rows[0].name,
-        description: result.rows[0].description,
-        pointsRequired: result.rows[0].points_required,
-        emoji: result.rows[0].emoji,
-        category: result.rows[0].category
+        id: conversion.id.toString(),
+        name: conversion.name,
+        description: conversion.description,
+        pointsRequired: conversion.pointsRequired,
+        emoji: conversion.emoji,
+        category: conversion.category
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API POST conversions:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 
@@ -87,15 +91,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'ID manquant' }, { status: 400 });
     }
 
-    await sql`
-      DELETE FROM conversions 
-      WHERE id = ${parseInt(id)}
-    `;
+    await prisma.conversion.delete({
+      where: { id: parseInt(id) }
+    });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API DELETE conversions:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 

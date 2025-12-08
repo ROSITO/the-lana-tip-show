@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { prisma } from '@/lib/prisma';
 import { initDatabase } from '@/lib/db';
 
 // GET - Récupérer le mot de passe admin
@@ -8,27 +8,24 @@ export async function GET() {
     try {
       await initDatabase();
     } catch (initError: any) {
-      if (!initError.message?.includes('already exists')) {
-        console.error('Erreur init database:', initError);
+      if (initError.message?.includes('migrate')) {
         return NextResponse.json({ 
-          error: 'Erreur d\'initialisation de la base de données',
-          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+          error: 'Les tables n\'existent pas encore',
+          hint: 'Exécutez: npx prisma migrate dev'
         }, { status: 500 });
       }
     }
     
-    const result = await sql`
-      SELECT password FROM admin_password 
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
+    const adminPassword = await prisma.adminPassword.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
     // Si aucun mot de passe n'existe, retourner le mot de passe par défaut
-    if (result.rows.length === 0) {
+    if (!adminPassword) {
       return NextResponse.json({ password: 'admin123' });
     }
 
-    return NextResponse.json({ password: result.rows[0].password });
+    return NextResponse.json({ password: adminPassword.password });
   } catch (error: any) {
     console.error('Erreur API password:', error);
     return NextResponse.json({ 
@@ -50,19 +47,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mot de passe manquant' }, { status: 400 });
     }
 
-    const result = await sql`
-      SELECT password FROM admin_password 
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
+    const adminPassword = await prisma.adminPassword.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
-    const correctPassword = result.rows[0]?.password || 'admin123';
+    const correctPassword = adminPassword?.password || 'admin123';
     const isValid = password === correctPassword;
 
     return NextResponse.json({ valid: isValid });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API password POST:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 
@@ -83,36 +81,35 @@ export async function PUT(request: NextRequest) {
     }
 
     // Vérifier le mot de passe actuel
-    const result = await sql`
-      SELECT id, password FROM admin_password 
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
+    const adminPassword = await prisma.adminPassword.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
-    const correctPassword = result.rows[0]?.password || 'admin123';
+    const correctPassword = adminPassword?.password || 'admin123';
     
     if (currentPassword !== correctPassword) {
       return NextResponse.json({ error: 'Mot de passe actuel incorrect' }, { status: 401 });
     }
 
     // Mettre à jour ou créer le mot de passe
-    if (result.rows.length > 0) {
-      await sql`
-        UPDATE admin_password 
-        SET password = ${newPassword}, updated_at = NOW()
-        WHERE id = ${result.rows[0].id}
-      `;
+    if (adminPassword) {
+      await prisma.adminPassword.update({
+        where: { id: adminPassword.id },
+        data: { password: newPassword }
+      });
     } else {
-      await sql`
-        INSERT INTO admin_password (password)
-        VALUES (${newPassword})
-      `;
+      await prisma.adminPassword.create({
+        data: { password: newPassword }
+      });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API password PUT:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 

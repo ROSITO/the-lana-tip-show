@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { prisma } from '@/lib/prisma';
 import { initDatabase } from '@/lib/db';
 
 // GET - Récupérer les points
@@ -8,38 +8,33 @@ export async function GET() {
     try {
       await initDatabase();
     } catch (initError: any) {
-      // Si l'erreur est juste que les tables existent déjà, continuer
-      if (!initError.message?.includes('already exists')) {
-        console.error('Erreur init database:', initError);
+      if (initError.message?.includes('migrate')) {
         return NextResponse.json({ 
-          error: 'Erreur d\'initialisation de la base de données',
-          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+          error: 'Les tables n\'existent pas encore',
+          hint: 'Exécutez: npx prisma migrate dev'
         }, { status: 500 });
       }
+      console.error('Erreur init database:', initError);
     }
     
-    const pointsResult = await sql`
-      SELECT total_points FROM points 
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
+    const points = await prisma.points.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
-    const totalPoints = pointsResult.rows[0]?.total_points || 0;
+    const totalPoints = points?.totalPoints || 0;
 
-    const transactionsResult = await sql`
-      SELECT id, type, amount, reason, timestamp 
-      FROM transactions 
-      ORDER BY timestamp DESC
-    `;
+    const transactions = await prisma.transaction.findMany({
+      orderBy: { timestamp: 'desc' }
+    });
 
     return NextResponse.json({
       totalPoints,
-      transactions: transactionsResult.rows.map(row => ({
-        id: row.id.toString(),
-        type: row.type,
-        amount: row.amount,
-        reason: row.reason,
-        timestamp: Number(row.timestamp)
+      transactions: transactions.map(t => ({
+        id: t.id.toString(),
+        type: t.type as 'add' | 'remove',
+        amount: t.amount,
+        reason: t.reason,
+        timestamp: Number(t.timestamp)
       }))
     });
   } catch (error: any) {
@@ -47,7 +42,9 @@ export async function GET() {
     return NextResponse.json({ 
       error: 'Erreur serveur',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      hint: error.message?.includes('relation') ? 'Les tables n\'existent pas encore. Elles seront créées automatiquement.' : undefined
+      hint: error.message?.includes('relation') || error.message?.includes('does not exist') 
+        ? 'Les tables n\'existent pas encore. Exécutez: npx prisma migrate dev' 
+        : undefined
     }, { status: 500 });
   }
 }
@@ -65,43 +62,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Récupérer les points actuels
-    const pointsResult = await sql`
-      SELECT id, total_points FROM points 
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
+    let points = await prisma.points.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
 
     let newTotalPoints = 0;
-    if (pointsResult.rows.length > 0) {
-      const currentPoints = pointsResult.rows[0].total_points;
+    if (points) {
       newTotalPoints = type === 'add' 
-        ? currentPoints + amount 
-        : currentPoints - Math.abs(amount);
+        ? points.totalPoints + amount 
+        : points.totalPoints - Math.abs(amount);
       
       // Mettre à jour les points
-      await sql`
-        UPDATE points 
-        SET total_points = ${newTotalPoints}, updated_at = NOW()
-        WHERE id = ${pointsResult.rows[0].id}
-      `;
+      points = await prisma.points.update({
+        where: { id: points.id },
+        data: { totalPoints: newTotalPoints }
+      });
     } else {
       newTotalPoints = type === 'add' ? amount : -Math.abs(amount);
-      await sql`
-        INSERT INTO points (total_points) 
-        VALUES (${newTotalPoints})
-      `;
+      points = await prisma.points.create({
+        data: { totalPoints: newTotalPoints }
+      });
     }
 
     // Ajouter la transaction
-    await sql`
-      INSERT INTO transactions (type, amount, reason, timestamp)
-      VALUES (${type}, ${type === 'add' ? amount : Math.abs(amount)}, ${reason}, ${Date.now()})
-    `;
+    await prisma.transaction.create({
+      data: {
+        type: type as 'add' | 'remove',
+        amount: type === 'add' ? amount : Math.abs(amount),
+        reason,
+        timestamp: BigInt(Date.now())
+      }
+    });
 
     return NextResponse.json({ success: true, totalPoints: newTotalPoints });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API POST points:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 
