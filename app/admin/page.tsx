@@ -10,8 +10,10 @@ export default function AdminPage() {
   const router = useRouter();
   const [points, setPoints] = useState(0);
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
+  const [addAmount, setAddAmount] = useState('');
+  const [addReason, setAddReason] = useState('');
+  const [removeAmount, setRemoveAmount] = useState('');
+  const [removeReason, setRemoveReason] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showConversions, setShowConversions] = useState(false);
   const [conversions, setConversions] = useState<ConversionOption[]>([]);
@@ -47,21 +49,21 @@ export default function AdminPage() {
   };
 
   const handleAddPoints = () => {
-    const pointsToAdd = parseInt(amount);
-    if (pointsToAdd > 0 && reason.trim()) {
-      addPoints(pointsToAdd, reason);
-      setAmount('');
-      setReason('');
+    const pointsToAdd = parseInt(addAmount);
+    if (!isNaN(pointsToAdd) && pointsToAdd !== 0 && addReason.trim()) {
+      addPoints(pointsToAdd, addReason);
+      setAddAmount('');
+      setAddReason('');
       loadData();
     }
   };
 
   const handleRemovePoints = () => {
-    const pointsToRemove = parseInt(amount);
-    if (pointsToRemove > 0 && reason.trim()) {
-      removePoints(pointsToRemove, reason);
-      setAmount('');
-      setReason('');
+    const pointsToRemove = parseInt(removeAmount);
+    if (!isNaN(pointsToRemove) && pointsToRemove !== 0 && removeReason.trim()) {
+      removePoints(pointsToRemove, removeReason);
+      setRemoveAmount('');
+      setRemoveReason('');
       loadData();
     }
   };
@@ -447,8 +449,8 @@ export default function AdminPage() {
                 <label className="block text-white font-semibold mb-2">Nombre de points</label>
                 <input
                   type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={addAmount}
+                  onChange={(e) => setAddAmount(e.target.value)}
                   placeholder="Ex: 10"
                   className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
                 />
@@ -457,8 +459,8 @@ export default function AdminPage() {
                 <label className="block text-white font-semibold mb-2">Raison</label>
                 <input
                   type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  value={addReason}
+                  onChange={(e) => setAddReason(e.target.value)}
                   placeholder="Ex: Aide aux tâches ménagères"
                   className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
                 />
@@ -483,8 +485,8 @@ export default function AdminPage() {
                 <label className="block text-white font-semibold mb-2">Nombre de points</label>
                 <input
                   type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={removeAmount}
+                  onChange={(e) => setRemoveAmount(e.target.value)}
                   placeholder="Ex: 5"
                   className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
                 />
@@ -493,8 +495,8 @@ export default function AdminPage() {
                 <label className="block text-white font-semibold mb-2">Raison</label>
                 <input
                   type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
+                  value={removeReason}
+                  onChange={(e) => setRemoveReason(e.target.value)}
                   placeholder="Ex: Chambre non rangée"
                   className="w-full px-4 py-3 rounded-xl text-lg focus:outline-none focus:ring-2 focus:ring-white"
                 />
