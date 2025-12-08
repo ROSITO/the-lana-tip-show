@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Shield, User, Lock } from 'lucide-react';
-import { verifyAdminPassword } from '@/lib/storage';
+import { verifyAdminPassword } from '@/lib/storage-db';
 
 export default function Home() {
   const router = useRouter();
@@ -25,9 +25,10 @@ export default function Home() {
     }
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
+  const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (verifyAdminPassword(adminPassword)) {
+    const isValid = await verifyAdminPassword(adminPassword);
+    if (isValid) {
       localStorage.setItem('userRole', 'admin');
       setSelectedRole('admin');
       setPasswordError(false);

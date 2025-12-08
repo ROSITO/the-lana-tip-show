@@ -34,9 +34,22 @@ export function getPointsData(): PointsData {
     return { totalPoints: 0, transactions: [] };
   }
   
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    return JSON.parse(stored);
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Vérifier que les données sont valides
+      if (parsed && typeof parsed.totalPoints === 'number' && Array.isArray(parsed.transactions)) {
+        return parsed;
+      } else {
+        console.warn('Données corrompues dans localStorage, réinitialisation');
+        const defaultData = { totalPoints: 0, transactions: [] };
+        savePointsData(defaultData);
+        return defaultData;
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors de la lecture des points:', error);
   }
   
   return { totalPoints: 0, transactions: [] };
@@ -44,10 +57,20 @@ export function getPointsData(): PointsData {
 
 export function savePointsData(data: PointsData): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Vérification que les données ont bien été sauvegardées
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) {
+      console.error('Erreur: Les données n\'ont pas pu être sauvegardées dans localStorage');
+    }
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde des points:', error);
+  }
 }
 
 export function addPoints(amount: number, reason: string): void {
+  if (typeof window === 'undefined') return;
   const data = getPointsData();
   data.totalPoints += amount;
   data.transactions.push({
@@ -58,9 +81,15 @@ export function addPoints(amount: number, reason: string): void {
     timestamp: Date.now(),
   });
   savePointsData(data);
+  // Vérification immédiate que les données ont été sauvegardées
+  const verify = getPointsData();
+  if (verify.totalPoints !== data.totalPoints) {
+    console.error('Erreur de persistance: les points n\'ont pas été sauvegardés correctement');
+  }
 }
 
 export function removePoints(amount: number, reason: string): void {
+  if (typeof window === 'undefined') return;
   const data = getPointsData();
   // Toujours soustraire la valeur absolue pour enlever des points
   // Si amount est négatif, on prend sa valeur absolue pour enlever quand même
@@ -74,6 +103,11 @@ export function removePoints(amount: number, reason: string): void {
     timestamp: Date.now(),
   });
   savePointsData(data);
+  // Vérification immédiate que les données ont été sauvegardées
+  const verify = getPointsData();
+  if (verify.totalPoints !== data.totalPoints) {
+    console.error('Erreur de persistance: les points n\'ont pas été sauvegardés correctement');
+  }
 }
 
 // Gestion des conversions

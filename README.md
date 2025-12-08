@@ -42,13 +42,35 @@ npm run build
 npm start
 ```
 
+## 📦 Configuration Vercel Postgres
+
+### 1. Créer une base de données Postgres sur Vercel
+
+1. Dans votre projet Vercel, allez dans l'onglet **Storage**
+2. Cliquez sur **Create Database** > **Postgres**
+3. Choisissez un nom pour votre base de données
+4. Vercel créera automatiquement les variables d'environnement nécessaires
+
+### 2. Les tables sont créées automatiquement
+
+Les tables sont créées automatiquement au premier appel API. Aucune configuration manuelle nécessaire !
+
+### 3. Variables d'environnement
+
+Vercel configure automatiquement :
+- `POSTGRES_URL`
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL_NON_POOLING`
+
+Ces variables sont automatiquement disponibles dans votre application.
+
 ## 📦 Déploiement sur Vercel
 
-### Configuration requise : **AUCUNE** ✅
+### Configuration requise
 
-- ❌ **Pas de variables d'environnement** à configurer
-- ❌ **Pas de commandes d'installation spéciales** à spécifier
+- ✅ **Créer une base de données Postgres** dans Vercel (Storage > Create Database)
 - ✅ Vercel détecte automatiquement Next.js et utilise les commandes par défaut
+- ✅ Les variables d'environnement Postgres sont configurées automatiquement
 
 ### Étapes de déploiement
 
@@ -74,9 +96,10 @@ vercel
 - TypeScript
 - Tailwind CSS
 - Lucide React (icônes)
-- LocalStorage (stockage des données)
+- Vercel Postgres (base de données PostgreSQL intégrée)
+- API Routes Next.js
 
 ## 📝 Notes
 
-Les données sont stockées dans le localStorage du navigateur. Pour une utilisation en production avec plusieurs utilisateurs, considérez l'ajout d'une base de données.
+Les données sont stockées dans Vercel Postgres, ce qui garantit une persistance fiable et accessible depuis n'importe quel appareil. Les tables sont créées automatiquement au premier lancement.
 

@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sparkles, Gift, Coins, Star, Home } from 'lucide-react';
-import { getPointsData } from '@/lib/storage';
-import { loadConversions, getConversionsByCategory, type ConversionOption } from '@/lib/conversions';
+import { getPointsData, getConversions, type ConversionOption } from '@/lib/storage-db';
+import { getConversionsByCategory } from '@/lib/conversions';
 
 export default function ChildPage() {
   const router = useRouter();
@@ -18,7 +18,12 @@ export default function ChildPage() {
       router.push('/');
       return;
     }
+    // Charger les données immédiatement
     loadData();
+    // Recharger les données après un court délai pour s'assurer que le localStorage est prêt
+    const timeout = setTimeout(() => {
+      loadData();
+    }, 100);
     
     // Écouter les changements de localStorage pour les conversions
     const handleStorageChange = () => {
@@ -33,15 +38,16 @@ export default function ChildPage() {
     }, 2000);
     
     return () => {
+      clearTimeout(timeout);
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
   }, [router]);
 
-  const loadData = () => {
-    const data = getPointsData();
+  const loadData = async () => {
+    const data = await getPointsData();
     setPoints(data.totalPoints);
-    const loadedConversions = loadConversions();
+    const loadedConversions = await getConversions();
     setConversions(loadedConversions);
   };
 

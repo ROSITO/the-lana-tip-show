@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword } from '@/lib/storage';
-import { loadConversions } from '@/lib/conversions';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -37,36 +36,50 @@ export default function AdminPage() {
       router.push('/');
       return;
     }
+    // Charger les données immédiatement
     loadData();
+    // Recharger les données après un court délai pour s'assurer que le localStorage est prêt
+    const timeout = setTimeout(() => {
+      loadData();
+    }, 100);
+    return () => clearTimeout(timeout);
   }, [router]);
 
-  const loadData = () => {
-    const data = getPointsData();
+  const loadData = async () => {
+    const data = await getPointsData();
     setPoints(data.totalPoints);
     setTransactions(data.transactions.sort((a, b) => b.timestamp - a.timestamp));
-    const loadedConversions = loadConversions();
+    const loadedConversions = await getConversions();
     setConversions(loadedConversions);
   };
 
-  const handleAddPoints = () => {
+  const handleAddPoints = async () => {
     const pointsToAdd = parseInt(addAmount);
     if (!isNaN(pointsToAdd) && pointsToAdd !== 0 && addReason.trim()) {
-      addPoints(pointsToAdd, addReason);
-      setAddAmount('');
-      setAddReason('');
-      loadData();
+      const success = await addPoints(pointsToAdd, addReason);
+      if (success) {
+        setAddAmount('');
+        setAddReason('');
+        await loadData();
+      } else {
+        alert('Erreur lors de l\'ajout des points');
+      }
     }
   };
 
-  const handleRemovePoints = () => {
+  const handleRemovePoints = async () => {
     const pointsToRemove = parseInt(removeAmount);
     // Accepter n'importe quelle valeur non-nulle (positive ou négative)
     // La fonction removePoints gérera la valeur absolue
     if (!isNaN(pointsToRemove) && pointsToRemove !== 0 && removeReason.trim()) {
-      removePoints(pointsToRemove, removeReason);
-      setRemoveAmount('');
-      setRemoveReason('');
-      loadData();
+      const success = await removePoints(pointsToRemove, removeReason);
+      if (success) {
+        setRemoveAmount('');
+        setRemoveReason('');
+        await loadData();
+      } else {
+        alert('Erreur lors de la suppression des points');
+      }
     }
   };
 
@@ -85,7 +98,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleAddConversion = () => {
+  const handleAddConversion = async () => {
     if (
       newConversion.name.trim() &&
       newConversion.description.trim() &&
@@ -93,35 +106,41 @@ export default function AdminPage() {
       parseInt(newConversion.pointsRequired) > 0 &&
       newConversion.emoji.trim()
     ) {
-      const conversion: ConversionOption = {
-        id: Date.now().toString(),
+      const success = await addConversion({
         name: newConversion.name,
         description: newConversion.description,
         pointsRequired: parseInt(newConversion.pointsRequired),
         emoji: newConversion.emoji,
         category: newConversion.category,
-      };
-      addConversion(conversion);
-      setNewConversion({
-        name: '',
-        description: '',
-        pointsRequired: '',
-        emoji: '',
-        category: 'money',
       });
-      setShowAddConversion(false);
-      loadData();
+      if (success) {
+        setNewConversion({
+          name: '',
+          description: '',
+          pointsRequired: '',
+          emoji: '',
+          category: 'money',
+        });
+        setShowAddConversion(false);
+        await loadData();
+      } else {
+        alert('Erreur lors de la création de la conversion');
+      }
     }
   };
 
-  const handleDeleteConversion = (id: string) => {
+  const handleDeleteConversion = async (id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette conversion ?')) {
-      deleteConversion(id);
-      loadData();
+      const success = await deleteConversion(id);
+      if (success) {
+        await loadData();
+      } else {
+        alert('Erreur lors de la suppression de la conversion');
+      }
     }
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     setPasswordError('');
     
     if (newPassword.length < 4) {
@@ -134,17 +153,22 @@ export default function AdminPage() {
       return;
     }
     
-    if (!verifyAdminPassword(currentPassword)) {
+    const isValid = await verifyAdminPassword(currentPassword);
+    if (!isValid) {
       setPasswordError('Mot de passe actuel incorrect');
       return;
     }
     
-    setAdminPassword(newPassword);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setShowPasswordChange(false);
-    alert('✅ Mot de passe changé avec succès !');
+    const success = await setAdminPassword(newPassword, currentPassword);
+    if (success) {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordChange(false);
+      alert('✅ Mot de passe changé avec succès !');
+    } else {
+      setPasswordError('Erreur lors du changement de mot de passe');
+    }
   };
 
   return (

@@ -113,22 +113,28 @@ export function getConversionsByCategory(conversions: ConversionOption[]) {
   };
 }
 
-// Charger les conversions depuis le storage ou utiliser les valeurs par défaut
-export function loadConversions(): ConversionOption[] {
+// Charger les conversions depuis la base de données
+// Cette fonction est maintenant remplacée par getConversions() de storage-db.ts
+// Conservée pour compatibilité mais devrait utiliser getConversions() directement
+export async function loadConversions(): Promise<ConversionOption[]> {
   if (typeof window === 'undefined') {
     return defaultConversionOptions;
   }
   
-  // Import dynamique pour éviter les problèmes de circular dependency
-  const storage = require('./storage');
-  const stored = storage.getConversions();
-  
-  // Si aucune conversion stockée, initialiser avec les valeurs par défaut
-  if (stored.length === 0) {
-    storage.saveConversions(defaultConversionOptions);
+  try {
+    const { getConversions } = await import('./storage-db');
+    const stored = await getConversions();
+    
+    // Si aucune conversion stockée, retourner les valeurs par défaut
+    // L'admin pourra les créer depuis l'interface
+    if (stored.length === 0) {
+      return defaultConversionOptions;
+    }
+    
+    return stored;
+  } catch (error) {
+    console.error('Erreur loadConversions:', error);
     return defaultConversionOptions;
   }
-  
-  return stored;
 }
 
