@@ -5,7 +5,18 @@ import { initDatabase } from '@/lib/db';
 // GET - Récupérer les points
 export async function GET() {
   try {
-    await initDatabase();
+    try {
+      await initDatabase();
+    } catch (initError: any) {
+      // Si l'erreur est juste que les tables existent déjà, continuer
+      if (!initError.message?.includes('already exists')) {
+        console.error('Erreur init database:', initError);
+        return NextResponse.json({ 
+          error: 'Erreur d\'initialisation de la base de données',
+          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+        }, { status: 500 });
+      }
+    }
     
     const pointsResult = await sql`
       SELECT total_points FROM points 
@@ -31,9 +42,13 @@ export async function GET() {
         timestamp: Number(row.timestamp)
       }))
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API points:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      hint: error.message?.includes('relation') ? 'Les tables n\'existent pas encore. Elles seront créées automatiquement.' : undefined
+    }, { status: 500 });
   }
 }
 

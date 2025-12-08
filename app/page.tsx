@@ -2,8 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Shield, User, Lock } from 'lucide-react';
+import { Sparkles, Shield, User, Lock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { verifyAdminPassword } from '@/lib/storage-db';
+
+interface DbStatus {
+  connected: boolean;
+  loading: boolean;
+  message?: string;
+  error?: string;
+  tables?: {
+    allPresent: boolean;
+    missing?: string[];
+  };
+}
 
 export default function Home() {
   const router = useRouter();
@@ -11,9 +22,35 @@ export default function Home() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+  const [dbStatus, setDbStatus] = useState<DbStatus>({ connected: false, loading: true });
 
-  // Ne pas rediriger automatiquement - laisser l'utilisateur choisir son mode
-  // Si l'utilisateur veut revenir à la page d'accueil, il peut se déconnecter depuis admin/child
+  // Vérifier la connexion à la base de données
+  useEffect(() => {
+    const checkDatabase = async () => {
+      try {
+        const response = await fetch('/api/health');
+        const data = await response.json();
+        setDbStatus({
+          connected: data.connected || false,
+          loading: false,
+          message: data.message,
+          error: data.error,
+          tables: data.tables
+        });
+      } catch (error) {
+        setDbStatus({
+          connected: false,
+          loading: false,
+          error: 'Impossible de vérifier la connexion à la base de données'
+        });
+      }
+    };
+    
+    checkDatabase();
+    // Vérifier toutes les 30 secondes
+    const interval = setInterval(checkDatabase, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRoleSelection = (role: 'admin' | 'child') => {
     if (role === 'admin') {
@@ -42,6 +79,45 @@ export default function Home() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="max-w-2xl w-full">
+        {/* Indicateur de statut de la base de données */}
+        <div className="mb-6 p-4 rounded-xl border-2 bg-white shadow-lg">
+          <div className="flex items-center gap-3">
+            {dbStatus.loading ? (
+              <>
+                <Loader className="w-5 h-5 text-gray-400 animate-spin" />
+                <span className="text-gray-600 font-medium">Vérification de la connexion...</span>
+              </>
+            ) : dbStatus.connected ? (
+              <>
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <div className="flex-1">
+                  <span className="text-green-600 font-semibold">Base de données connectée</span>
+                  {dbStatus.tables && !dbStatus.tables.allPresent && (
+                    <p className="text-xs text-orange-600 mt-1">
+                      Tables manquantes: {dbStatus.tables.missing?.join(', ')}
+                    </p>
+                  )}
+                  {dbStatus.message && (
+                    <p className="text-xs text-gray-500 mt-1">{dbStatus.message}</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <XCircle className="w-5 h-5 text-red-500" />
+                <div className="flex-1">
+                  <span className="text-red-600 font-semibold">Base de données non connectée</span>
+                  {dbStatus.error && (
+                    <p className="text-xs text-red-600 mt-1">{dbStatus.error}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Créez une base de données Postgres dans Vercel (Storage → Create Database)
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
         <div className="text-center mb-12 animate-bounce-slow">
           <h1 className="text-6xl md:text-8xl font-bold mb-4 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 bg-clip-text text-transparent">
             ✨ The Lana Tip Show ✨

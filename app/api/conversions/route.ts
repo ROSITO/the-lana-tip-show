@@ -5,7 +5,17 @@ import { initDatabase } from '@/lib/db';
 // GET - Récupérer les conversions
 export async function GET() {
   try {
-    await initDatabase();
+    try {
+      await initDatabase();
+    } catch (initError: any) {
+      if (!initError.message?.includes('already exists')) {
+        console.error('Erreur init database:', initError);
+        return NextResponse.json({ 
+          error: 'Erreur d\'initialisation de la base de données',
+          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+        }, { status: 500 });
+      }
+    }
     
     const result = await sql`
       SELECT id, name, description, points_required, emoji, category
@@ -21,9 +31,12 @@ export async function GET() {
       emoji: row.emoji,
       category: row.category
     })));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API conversions:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 

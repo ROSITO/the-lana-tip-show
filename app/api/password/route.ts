@@ -5,7 +5,17 @@ import { initDatabase } from '@/lib/db';
 // GET - Récupérer le mot de passe admin
 export async function GET() {
   try {
-    await initDatabase();
+    try {
+      await initDatabase();
+    } catch (initError: any) {
+      if (!initError.message?.includes('already exists')) {
+        console.error('Erreur init database:', initError);
+        return NextResponse.json({ 
+          error: 'Erreur d\'initialisation de la base de données',
+          details: process.env.NODE_ENV === 'development' ? initError.message : undefined
+        }, { status: 500 });
+      }
+    }
     
     const result = await sql`
       SELECT password FROM admin_password 
@@ -19,9 +29,12 @@ export async function GET() {
     }
 
     return NextResponse.json({ password: result.rows[0].password });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur API password:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
   }
 }
 
