@@ -62,7 +62,7 @@ export function addPoints(amount: number, reason: string): void {
 
 export function removePoints(amount: number, reason: string): void {
   const data = getPointsData();
-  data.totalPoints = Math.max(0, data.totalPoints - amount);
+  data.totalPoints = data.totalPoints - amount; // Permet les valeurs négatives
   data.transactions.push({
     id: Date.now().toString(),
     type: 'remove',

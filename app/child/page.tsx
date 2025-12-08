@@ -54,7 +54,7 @@ export default function ChildPage() {
     ? conversions 
     : conversions.filter(opt => opt.category === selectedCategory);
 
-  const canAfford = (option: ConversionOption) => points >= option.pointsRequired;
+  const canAfford = (option: ConversionOption) => points >= option.pointsRequired && points >= 0;
 
   const categories = getConversionsByCategory(conversions);
 
@@ -83,13 +83,15 @@ export default function ChildPage() {
         {/* Points Display */}
         <div className="bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-400 rounded-3xl p-8 md:p-12 mb-8 shadow-2xl text-center animate-pulse-glow">
           <div className="text-white">
-            <p className="text-3xl md:text-4xl mb-4 font-semibold">Tes points magiques</p>
+            <p className="text-3xl md:text-4xl mb-4 font-semibold">Tes points</p>
             <div className="flex items-center justify-center gap-4">
               <Star className="w-12 h-12 md:w-16 md:h-16 text-yellow-300 animate-bounce-slow" />
-              <p className="text-8xl md:text-9xl font-bold">{points}</p>
+              <p className={`text-8xl md:text-9xl font-bold ${points < 0 ? 'text-red-200' : ''}`}>{points}</p>
               <Star className="w-12 h-12 md:w-16 md:h-16 text-yellow-300 animate-bounce-slow" style={{ animationDelay: '0.3s' }} />
             </div>
-            <p className="text-xl md:text-2xl mt-4">Continue comme ça ! 🌟</p>
+            <p className="text-xl md:text-2xl mt-4">
+              {points < 0 ? 'Il faut remonter la pente ! 💪' : points === 0 ? 'Tu peux faire mieux ! ⭐' : 'Continue comme ça ! 🌟'}
+            </p>
           </div>
         </div>
 
@@ -185,7 +187,11 @@ export default function ChildPage() {
         {/* Info Section */}
         <div className="mt-12 bg-white rounded-2xl p-6 shadow-xl text-center">
           <p className="text-lg text-gray-700">
-            💡 <strong>Astuce :</strong> Plus tu accumules de points, plus tu pourras échanger contre de super choses !
+            {points < 0 ? (
+              <>⚠️ <strong>Attention :</strong> Tu as des points négatifs. Il faut remonter pour pouvoir échanger tes points !</>
+            ) : (
+              <>💡 <strong>Astuce :</strong> Plus tu accumules de points, plus tu pourras échanger contre de super choses !</>
+            )}
           </p>
         </div>
       </div>
