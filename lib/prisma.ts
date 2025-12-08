@@ -5,21 +5,20 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 // Support des variables d'environnement avec ou sans préfixe lana_
-// Note: Le schema.prisma utilise POSTGRES_URL, mais on peut override ici
-const getDatabaseUrl = () => {
-  // Essayer POSTGRES_URL d'abord (standard), puis les variantes avec préfixe lana_
-  return process.env.POSTGRES_URL || 
-         (process.env as any).lana_POSTGRES_URL || 
-         process.env.PRISMA_DATABASE_URL ||
-         (process.env as any).lana_PRISMA_DATABASE_URL ||
-         process.env.DATABASE_URL ||
-         (process.env as any).lana_DATABASE_URL ||
-         '';
-};
-
-// Si POSTGRES_URL n'est pas défini mais lana_POSTGRES_URL l'est, l'utiliser
-if (!process.env.POSTGRES_URL && (process.env as any).lana_POSTGRES_URL) {
-  process.env.POSTGRES_URL = (process.env as any).lana_POSTGRES_URL;
+// Le schema.prisma utilise POSTGRES_URL, donc on doit définir cette variable
+// si elle n'existe pas mais que lana_POSTGRES_URL existe
+if (!process.env.POSTGRES_URL) {
+  // Essayer les variantes avec préfixe lana_ ou autres formats
+  const dbUrl = (process.env as any).lana_POSTGRES_URL || 
+                process.env.PRISMA_DATABASE_URL ||
+                (process.env as any).lana_PRISMA_DATABASE_URL ||
+                process.env.DATABASE_URL ||
+                (process.env as any).lana_DATABASE_URL;
+  
+  if (dbUrl) {
+    // Définir POSTGRES_URL pour que Prisma puisse l'utiliser
+    process.env.POSTGRES_URL = dbUrl;
+  }
 }
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient();

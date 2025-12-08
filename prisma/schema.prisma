@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("POSTGRES_URL") // Cherche POSTGRES_URL, sinon utilise lana_POSTGRES_URL via lib/prisma.ts
+  url      = env("POSTGRES_URL") // Supporte POSTGRES_URL ou lana_POSTGRES_URL (via override dans lib/prisma.ts)
 }
 
 model Points {
