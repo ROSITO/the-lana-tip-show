@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Gift, Coins, Star, Home } from 'lucide-react';
-import { getPointsData, getConversions, type ConversionOption } from '@/lib/storage-db';
+import { Sparkles, Gift, Coins, Star, Home, TrendingUp, TrendingDown, History } from 'lucide-react';
+import { getPointsData, getConversions, type ConversionOption, type PointTransaction } from '@/lib/storage-db';
 import { getConversionsByCategory } from '@/lib/conversions';
 
 export default function ChildPage() {
   const router = useRouter();
   const [points, setPoints] = useState(0);
+  const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [conversions, setConversions] = useState<ConversionOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'money' | 'activity' | 'gift' | 'all'>('all');
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -47,8 +49,28 @@ export default function ChildPage() {
   const loadData = async () => {
     const data = await getPointsData();
     setPoints(data.totalPoints);
+    setTransactions(data.transactions || []);
     const loadedConversions = await getConversions();
     setConversions(loadedConversions);
+  };
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor(diff / (1000 * 60));
+
+    if (days > 0) {
+      return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+    } else if (hours > 0) {
+      return `Il y a ${hours} heure${hours > 1 ? 's' : ''}`;
+    } else if (minutes > 0) {
+      return `Il y a ${minutes} minute${minutes > 1 ? 's' : ''}`;
+    } else {
+      return 'À l\'instant';
+    }
   };
 
   const handleGoHome = () => {
@@ -100,6 +122,83 @@ export default function ChildPage() {
             </p>
           </div>
         </div>
+
+        {/* History Button */}
+        <div className="flex justify-center mb-6">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={`px-6 py-3 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 flex items-center gap-2 ${
+              showHistory
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-xl'
+                : 'bg-white text-gray-700 shadow-md hover:shadow-lg'
+            }`}
+          >
+            <History className="w-5 h-5" />
+            {showHistory ? 'Masquer' : 'Voir'} l'historique
+          </button>
+        </div>
+
+        {/* History Panel */}
+        {showHistory && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
+              📜 Historique de tes points
+            </h2>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {transactions.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 text-lg">Aucune transaction pour le moment</p>
+                  <p className="text-gray-400 text-sm mt-2">Les gains et pertes de points apparaîtront ici !</p>
+                </div>
+              ) : (
+                transactions
+                  .slice()
+                  .reverse()
+                  .map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all hover:scale-105 ${
+                        transaction.type === 'add'
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200'
+                          : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {transaction.type === 'add' ? (
+                          <div className="bg-green-500 rounded-full p-2">
+                            <TrendingUp className="w-6 h-6 text-white" />
+                          </div>
+                        ) : (
+                          <div className="bg-red-500 rounded-full p-2">
+                            <TrendingDown className="w-6 h-6 text-white" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-bold text-lg text-gray-800">
+                            {transaction.type === 'add' ? '✨ ' : '⚠️ '}
+                            {transaction.reason}
+                          </p>
+                          <p className="text-sm text-gray-500">{formatDate(transaction.timestamp)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className={`text-2xl font-bold ${
+                            transaction.type === 'add' ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
+                          {transaction.type === 'add' ? '➕' : '➖'} {transaction.amount}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {transaction.type === 'add' ? 'Gagné !' : 'Perdu'}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Category Filter */}
         <div className="flex flex-wrap justify-center gap-3 mb-8">
