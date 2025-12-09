@@ -134,3 +134,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// DELETE - Réinitialiser la roue de la chance
+export async function DELETE() {
+  try {
+    await initDatabase();
+    
+    const wheel = await prisma.wheelOfFortune.findFirst({
+      orderBy: { lastUsed: 'desc' }
+    });
+
+    if (wheel) {
+      await prisma.wheelOfFortune.delete({
+        where: { id: wheel.id }
+      });
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Roue de la chance réinitialisée'
+    });
+  } catch (error: any) {
+    console.error('Erreur API wheel-of-fortune DELETE:', error);
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2 } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly } from '@/lib/storage-db';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -254,6 +254,33 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette transaction de l\'historique ?\n\nNote: Les points totaux ne seront pas modifiés automatiquement.')) {
+      return;
+    }
+    
+    const success = await deleteTransaction(transactionId);
+    if (success) {
+      await loadData();
+      alert('✅ Transaction supprimée avec succès');
+    } else {
+      alert('Erreur lors de la suppression de la transaction');
+    }
+  };
+
+  const handleResetWheel = async () => {
+    if (!confirm('Êtes-vous sûr de vouloir réinitialiser la roue de la chance ?\n\nL\'enfant pourra l\'utiliser immédiatement.')) {
+      return;
+    }
+    
+    const success = await resetWheelOfFortune();
+    if (success) {
+      alert('✅ Roue de la chance réinitialisée avec succès');
+    } else {
+      alert('Erreur lors de la réinitialisation de la roue');
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -351,7 +378,17 @@ export default function AdminPage() {
         {/* History Panel */}
         {showHistory && (
           <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
-            <h2 className="text-2xl font-bold mb-4">Historique des transactions</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Historique des transactions</h2>
+              <button
+                onClick={handleResetWheel}
+                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 transition-all"
+                title="Réinitialiser la roue de la chance"
+              >
+                <RotateCw className="w-5 h-5" />
+                Réinitialiser la roue
+              </button>
+            </div>
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {transactions.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Aucune transaction pour le moment</p>
@@ -374,13 +411,22 @@ export default function AdminPage() {
                         <p className="text-sm text-gray-500">{formatDate(transaction.timestamp)}</p>
                       </div>
                     </div>
-                    <p
-                      className={`text-xl font-bold ${
-                        transaction.type === 'add' ? 'text-green-600' : 'text-red-600'
-                      }`}
-                    >
-                      {transaction.type === 'add' ? '+' : '-'}{transaction.amount}
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p
+                        className={`text-xl font-bold ${
+                          transaction.type === 'add' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {transaction.type === 'add' ? '+' : '-'}{transaction.amount}
+                      </p>
+                      <button
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                        title="Supprimer cette transaction"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
                 ))
               )}

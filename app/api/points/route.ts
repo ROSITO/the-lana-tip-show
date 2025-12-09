@@ -149,3 +149,42 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+// DELETE - Supprimer une transaction de l'historique
+export async function DELETE(request: NextRequest) {
+  try {
+    await initDatabase();
+    
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID de transaction manquant' }, { status: 400 });
+    }
+
+    // Récupérer la transaction pour connaître son impact
+    const transaction = await prisma.transaction.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!transaction) {
+      return NextResponse.json({ error: 'Transaction introuvable' }, { status: 404 });
+    }
+
+    // Supprimer la transaction
+    await prisma.transaction.delete({
+      where: { id: parseInt(id) }
+    });
+
+    // Note: On ne modifie pas les points totaux car cela pourrait créer des incohérences
+    // L'admin peut utiliser la fonction d'édition directe si nécessaire
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Erreur API DELETE points:', error);
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+

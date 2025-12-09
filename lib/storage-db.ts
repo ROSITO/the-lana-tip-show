@@ -108,6 +108,32 @@ export async function setPointsDirectly(totalPoints: number): Promise<boolean> {
   }
 }
 
+// Supprimer une transaction de l'historique
+export async function deleteTransaction(transactionId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/points?id=${transactionId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur deleteTransaction:', error);
+    return false;
+  }
+}
+
+// Réinitialiser la roue de la chance
+export async function resetWheelOfFortune(): Promise<boolean> {
+  try {
+    const response = await fetch('/api/wheel-of-fortune', {
+      method: 'DELETE',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur resetWheelOfFortune:', error);
+    return false;
+  }
+}
+
 // Conversions
 export async function getConversions(): Promise<ConversionOption[]> {
   try {
