@@ -66,7 +66,7 @@ model DailyBonus {
 
 model WheelOfFortune {
   id        Int      @id @default(autoincrement())
-  lastUsed  DateTime // Dernière utilisation de la roue
+  lastUsed  DateTime @map("last_used") // Dernière utilisation de la roue
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

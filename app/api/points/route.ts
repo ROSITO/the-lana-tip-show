@@ -104,3 +104,48 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PUT - Modifier directement le total de points (sans transaction)
+export async function PUT(request: NextRequest) {
+  try {
+    await initDatabase();
+    
+    const body = await request.json();
+    const { totalPoints } = body;
+
+    if (totalPoints === undefined || totalPoints === null) {
+      return NextResponse.json({ error: 'Nombre de points manquant' }, { status: 400 });
+    }
+
+    const newTotalPoints = parseInt(totalPoints);
+    if (isNaN(newTotalPoints)) {
+      return NextResponse.json({ error: 'Nombre de points invalide' }, { status: 400 });
+    }
+
+    // Récupérer les points actuels
+    let points = await prisma.points.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (points) {
+      // Mettre à jour les points
+      points = await prisma.points.update({
+        where: { id: points.id },
+        data: { totalPoints: newTotalPoints }
+      });
+    } else {
+      // Créer une nouvelle entrée
+      points = await prisma.points.create({
+        data: { totalPoints: newTotalPoints }
+      });
+    }
+
+    return NextResponse.json({ success: true, totalPoints: newTotalPoints });
+  } catch (error: any) {
+    console.error('Erreur API PUT points:', error);
+    return NextResponse.json({ 
+      error: 'Erreur serveur',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    }, { status: 500 });
+  }
+}
+

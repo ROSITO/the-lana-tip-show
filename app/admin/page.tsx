@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption } from '@/lib/storage-db';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2 } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -39,6 +39,8 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [showEditPoints, setShowEditPoints] = useState(false);
+  const [editPointsValue, setEditPointsValue] = useState('');
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -225,6 +227,33 @@ export default function AdminPage() {
     }
   };
 
+  const handleEditPoints = () => {
+    setEditPointsValue(points.toString());
+    setShowEditPoints(true);
+  };
+
+  const handleSavePoints = async () => {
+    const newPoints = parseInt(editPointsValue);
+    if (isNaN(newPoints)) {
+      alert('Valeur invalide');
+      return;
+    }
+    
+    if (!confirm(`Êtes-vous sûr de vouloir modifier les points de ${points} à ${newPoints} ?\n\nCette modification ne créera pas de transaction dans l'historique.`)) {
+      return;
+    }
+    
+    const success = await setPointsDirectly(newPoints);
+    if (success) {
+      setShowEditPoints(false);
+      setEditPointsValue('');
+      await loadData();
+      alert(`✅ Points modifiés avec succès : ${points} → ${newPoints}`);
+    } else {
+      alert('Erreur lors de la modification des points');
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -245,8 +274,47 @@ export default function AdminPage() {
         {/* Points Display */}
         <div className="bg-gradient-to-br from-purple-400 to-pink-400 rounded-3xl p-8 mb-8 shadow-2xl text-center animate-pulse-glow">
           <div className="text-white">
-            <p className="text-2xl mb-2">Points totaux de Lana</p>
-            <p className="text-7xl md:text-9xl font-bold">{points}</p>
+            <div className="flex items-center justify-center gap-4 mb-2">
+              <p className="text-2xl">Points totaux de Lana</p>
+              <button
+                onClick={handleEditPoints}
+                className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                title="Modifier directement les points"
+              >
+                <Edit2 className="w-5 h-5" />
+              </button>
+            </div>
+            {showEditPoints ? (
+              <div className="flex flex-col items-center gap-4">
+                <input
+                  type="number"
+                  value={editPointsValue}
+                  onChange={(e) => setEditPointsValue(e.target.value)}
+                  className="text-7xl md:text-9xl font-bold bg-white/20 border-2 border-white/50 rounded-xl px-4 py-2 text-center w-48 md:w-64 focus:outline-none focus:border-white"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSavePoints}
+                    className="px-6 py-2 bg-green-500 hover:bg-green-600 rounded-xl font-semibold transition-all"
+                  >
+                    ✓ Sauvegarder
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditPoints(false);
+                      setEditPointsValue('');
+                    }}
+                    className="px-6 py-2 bg-red-500 hover:bg-red-600 rounded-xl font-semibold transition-all"
+                  >
+                    ✕ Annuler
+                  </button>
+                </div>
+                <p className="text-sm opacity-80">⚠️ Cette modification ne créera pas de transaction dans l'historique</p>
+              </div>
+            ) : (
+              <p className="text-7xl md:text-9xl font-bold">{points}</p>
+            )}
             <div className="flex justify-center gap-4 mt-4 flex-wrap">
               <button
                 onClick={() => setShowHistory(!showHistory)}

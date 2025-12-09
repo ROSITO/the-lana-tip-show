@@ -89,6 +89,25 @@ export async function removePoints(amount: number, reason: string): Promise<bool
   }
 }
 
+// Modifier directement le total de points (sans transaction)
+export async function setPointsDirectly(totalPoints: number): Promise<boolean> {
+  try {
+    const response = await fetch('/api/points', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        totalPoints,
+      }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur setPointsDirectly:', error);
+    return false;
+  }
+}
+
 // Conversions
 export async function getConversions(): Promise<ConversionOption[]> {
   try {
