@@ -9,6 +9,11 @@
 body {
   @apply bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 min-h-screen;
   font-family: var(--font-inter);
+  /* Support des safe areas pour iPhone avec notch */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 @layer utilities {
