@@ -42,6 +42,37 @@ model Conversion {
   @@map("conversions")
 }
 
+model Task {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String
+  pointsRequired Int     @map("points_required") // Valeur négative (ex: -20)
+  emoji         String
+  category      String   // 'chore', 'homework', 'behavior', etc.
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("tasks")
+}
+
+model DailyBonus {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @unique // Date du bonus (sans l'heure)
+  checked   Boolean  @default(false) // Si le bonus a été vérifié/attribué
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("daily_bonus")
+}
+
+model WheelOfFortune {
+  id        Int      @id @default(autoincrement())
+  lastUsed  DateTime // Dernière utilisation de la roue
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("wheel_of_fortune")
+}
+
 model AdminPassword {
   id        Int      @id @default(autoincrement())
   password  String

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword } from '@/lib/storage-db';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -23,6 +23,16 @@ export default function AdminPage() {
     pointsRequired: '',
     emoji: '',
     category: 'money' as 'money' | 'activity' | 'gift',
+  });
+  const [showTasks, setShowTasks] = useState(false);
+  const [tasks, setTasks] = useState<TaskOption[]>([]);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({
+    name: '',
+    description: '',
+    pointsRequired: '',
+    emoji: '',
+    category: 'chore',
   });
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -51,6 +61,8 @@ export default function AdminPage() {
     setTransactions(data.transactions.sort((a, b) => b.timestamp - a.timestamp));
     const loadedConversions = await getConversions();
     setConversions(loadedConversions);
+    const loadedTasks = await getTasks();
+    setTasks(loadedTasks);
   };
 
   const handleAddPoints = async () => {
@@ -140,6 +152,48 @@ export default function AdminPage() {
     }
   };
 
+  const handleAddTask = async () => {
+    if (
+      newTask.name.trim() &&
+      newTask.description.trim() &&
+      newTask.pointsRequired &&
+      parseInt(newTask.pointsRequired) > 0 &&
+      newTask.emoji.trim()
+    ) {
+      const success = await addTask({
+        name: newTask.name,
+        description: newTask.description,
+        pointsRequired: -parseInt(newTask.pointsRequired), // Négatif
+        emoji: newTask.emoji,
+        category: newTask.category,
+      });
+      if (success) {
+        setNewTask({
+          name: '',
+          description: '',
+          pointsRequired: '',
+          emoji: '',
+          category: 'chore',
+        });
+        setShowAddTask(false);
+        await loadData();
+      } else {
+        alert('Erreur lors de la création de la tâche');
+      }
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+      const success = await deleteTask(id);
+      if (success) {
+        await loadData();
+      } else {
+        alert('Erreur lors de la suppression de la tâche');
+      }
+    }
+  };
+
   const handleChangePassword = async () => {
     setPasswordError('');
     
@@ -209,6 +263,13 @@ export default function AdminPage() {
                 Conversions
               </button>
               <button
+                onClick={() => setShowTasks(!showTasks)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
+              >
+                <ListTodo className="w-5 h-5" />
+                Tâches
+              </button>
+              <button
                 onClick={() => setShowPasswordChange(!showPasswordChange)}
                 className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
               >
@@ -252,6 +313,137 @@ export default function AdminPage() {
                     >
                       {transaction.type === 'add' ? '+' : '-'}{transaction.amount}
                     </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tasks Panel */}
+        {showTasks && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Gestion des tâches (points négatifs)</h2>
+              <button
+                onClick={() => setShowAddTask(!showAddTask)}
+                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-orange-600 hover:to-red-600 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter une tâche
+              </button>
+            </div>
+
+            {/* Add Task Form */}
+            {showAddTask && (
+              <div className="bg-gradient-to-br from-orange-100 to-red-100 rounded-xl p-6 mb-6 border-2 border-orange-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-800">Nouvelle tâche</h3>
+                  <button
+                    onClick={() => setShowAddTask(false)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={newTask.name}
+                      onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
+                      placeholder="Ex: Ramasser les feuilles"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Emoji</label>
+                    <input
+                      type="text"
+                      value={newTask.emoji}
+                      onChange={(e) => setNewTask({ ...newTask, emoji: e.target.value })}
+                      placeholder="Ex: 🍂"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:outline-none text-2xl"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Points requis (sera négatif)</label>
+                    <input
+                      type="number"
+                      value={newTask.pointsRequired}
+                      onChange={(e) => setNewTask({ ...newTask, pointsRequired: e.target.value })}
+                      placeholder="Ex: 20"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:outline-none"
+                      min="1"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Catégorie</label>
+                    <select
+                      value={newTask.category}
+                      onChange={(e) => setNewTask({ ...newTask, category: e.target.value })}
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:outline-none"
+                    >
+                      <option value="chore">🧹 Tâche ménagère</option>
+                      <option value="homework">📚 Devoirs</option>
+                      <option value="behavior">👤 Comportement</option>
+                      <option value="other">📝 Autre</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-700 font-semibold mb-2">Description</label>
+                    <input
+                      type="text"
+                      value={newTask.description}
+                      onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                      placeholder="Ex: Ramasser toutes les feuilles du jardin"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-orange-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={handleAddTask}
+                  className="mt-4 w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 rounded-xl font-bold text-lg hover:from-orange-600 hover:to-red-600 transition-all transform hover:scale-105"
+                >
+                  Créer la tâche ✨
+                </button>
+              </div>
+            )}
+
+            {/* Tasks List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {tasks.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Aucune tâche pour le moment</p>
+              ) : (
+                tasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl">{task.emoji}</div>
+                      <div>
+                        <p className="font-bold text-lg text-gray-800">{task.name}</p>
+                        <p className="text-sm text-gray-600">{task.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm font-semibold text-red-600">
+                            {task.pointsRequired} points
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            • {task.category === 'chore' ? '🧹 Tâche ménagère' : task.category === 'homework' ? '📚 Devoirs' : task.category === 'behavior' ? '👤 Comportement' : '📝 Autre'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTask(task.id)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      Supprimer
+                    </button>
                   </div>
                 ))
               )}

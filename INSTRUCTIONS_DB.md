@@ -55,3 +55,4 @@ Après avoir créé les tables, l'indicateur sur la page d'accueil devrait passe
 - **En développement** : Utilisez `prisma migrate dev` (crée des fichiers de migration)
 - **En production** : Utilisez `prisma migrate deploy` (applique les migrations existantes)
 
+

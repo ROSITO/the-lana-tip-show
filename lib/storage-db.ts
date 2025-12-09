@@ -22,6 +22,15 @@ export interface ConversionOption {
   category: 'money' | 'activity' | 'gift';
 }
 
+export interface TaskOption {
+  id: string;
+  name: string;
+  description: string;
+  pointsRequired: number; // Valeur négative (ex: -20)
+  emoji: string;
+  category: string;
+}
+
 // Points
 export async function getPointsData(): Promise<PointsData> {
   try {
@@ -92,7 +101,7 @@ export async function getConversions(): Promise<ConversionOption[]> {
       id: item.id,
       name: item.name,
       description: item.description,
-      pointsRequired: item.points_required,
+      pointsRequired: item.pointsRequired || item.points_required,
       emoji: item.emoji,
       category: item.category,
     }));
@@ -189,4 +198,128 @@ export async function setAdminPassword(newPassword: string, currentPassword: str
     return false;
   }
 }
+
+// Tâches (conversions négatives)
+export async function getTasks(): Promise<TaskOption[]> {
+  try {
+    const response = await fetch('/api/tasks');
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    return data.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      pointsRequired: item.pointsRequired,
+      emoji: item.emoji,
+      category: item.category,
+    }));
+  } catch (error) {
+    console.error('Erreur getTasks:', error);
+    return [];
+  }
+}
+
+export async function addTask(task: Omit<TaskOption, 'id'>): Promise<boolean> {
+  try {
+    const response = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: task.name,
+        description: task.description,
+        pointsRequired: task.pointsRequired,
+        emoji: task.emoji,
+        category: task.category,
+      }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur addTask:', error);
+    return false;
+  }
+}
+
+export async function deleteTask(taskId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/tasks?id=${taskId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur deleteTask:', error);
+    return false;
+  }
+}
+
+// Bonus quotidien
+export interface DailyBonusResult {
+  bonusAwarded: boolean;
+  amount?: number;
+  days?: number;
+  message: string;
+  alreadyChecked?: boolean;
+}
+
+export async function checkDailyBonus(): Promise<DailyBonusResult> {
+  try {
+    const response = await fetch('/api/daily-bonus');
+    if (!response.ok) {
+      return { bonusAwarded: false, message: 'Erreur lors de la vérification du bonus' };
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur checkDailyBonus:', error);
+    return { bonusAwarded: false, message: 'Erreur lors de la vérification du bonus' };
+  }
+}
+
+// Roue de la chance
+export interface WheelOfFortuneStatus {
+  canUse: boolean;
+  lastUsed: string | null;
+  daysSinceLastUse?: number;
+  daysUntilNextUse: number;
+}
+
+export interface WheelOfFortuneResult {
+  success: boolean;
+  outcome?: number;
+  totalPoints?: number;
+  message?: string;
+  error?: string;
+  daysUntilNextUse?: number;
+}
+
+export async function getWheelStatus(): Promise<WheelOfFortuneStatus> {
+  try {
+    const response = await fetch('/api/wheel-of-fortune');
+    if (!response.ok) {
+      return { canUse: false, lastUsed: null, daysUntilNextUse: 0 };
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur getWheelStatus:', error);
+    return { canUse: false, lastUsed: null, daysUntilNextUse: 0 };
+  }
+}
+
+export async function spinWheel(): Promise<WheelOfFortuneResult> {
+  try {
+    const response = await fetch('/api/wheel-of-fortune', {
+      method: 'POST',
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur spinWheel:', error);
+    return { success: false, error: 'Erreur lors du lancement de la roue' };
+  }
+}
+
 

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Gift, Coins, Star, Home, TrendingUp, TrendingDown, History } from 'lucide-react';
-import { getPointsData, getConversions, type ConversionOption, type PointTransaction } from '@/lib/storage-db';
+import { Sparkles, Gift, Coins, Star, Home, TrendingUp, TrendingDown, History, ListTodo, Zap, RotateCw } from 'lucide-react';
+import { getPointsData, getConversions, type ConversionOption, type PointTransaction, getTasks, type TaskOption, checkDailyBonus, getWheelStatus, spinWheel, type WheelOfFortuneResult } from '@/lib/storage-db';
 import { getConversionsByCategory } from '@/lib/conversions';
 
 export default function ChildPage() {
@@ -11,8 +11,13 @@ export default function ChildPage() {
   const [points, setPoints] = useState(0);
   const [transactions, setTransactions] = useState<PointTransaction[]>([]);
   const [conversions, setConversions] = useState<ConversionOption[]>([]);
+  const [tasks, setTasks] = useState<TaskOption[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<'money' | 'activity' | 'gift' | 'all'>('all');
   const [showHistory, setShowHistory] = useState(false);
+  const [showTasks, setShowTasks] = useState(false);
+  const [dailyBonusMessage, setDailyBonusMessage] = useState<string>('');
+  const [wheelStatus, setWheelStatus] = useState<{ canUse: boolean; daysUntilNextUse: number }>({ canUse: false, daysUntilNextUse: 0 });
+  const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -22,6 +27,10 @@ export default function ChildPage() {
     }
     // Charger les données immédiatement
     loadData();
+    // Vérifier le bonus quotidien au chargement
+    checkDailyBonusOnLoad();
+    // Vérifier le statut de la roue
+    checkWheelStatus();
     // Recharger les données après un court délai pour s'assurer que le localStorage est prêt
     const timeout = setTimeout(() => {
       loadData();
@@ -52,6 +61,48 @@ export default function ChildPage() {
     setTransactions(data.transactions || []);
     const loadedConversions = await getConversions();
     setConversions(loadedConversions);
+    const loadedTasks = await getTasks();
+    setTasks(loadedTasks);
+  };
+
+  const checkDailyBonusOnLoad = async () => {
+    const result = await checkDailyBonus();
+    if (result.bonusAwarded) {
+      setDailyBonusMessage(`🎉 ${result.message}`);
+      // Recharger les données pour mettre à jour les points
+      setTimeout(() => loadData(), 500);
+    } else if (result.alreadyChecked) {
+      setDailyBonusMessage('');
+    } else {
+      setDailyBonusMessage('');
+    }
+  };
+
+  const checkWheelStatus = async () => {
+    const status = await getWheelStatus();
+    setWheelStatus(status);
+  };
+
+  const handleSpinWheel = async () => {
+    if (!wheelStatus.canUse || isSpinning) return;
+    
+    setIsSpinning(true);
+    const result: WheelOfFortuneResult = await spinWheel();
+    
+    if (result.success) {
+      if (result.outcome && result.outcome > 0) {
+        setDailyBonusMessage(`🎉 ${result.message}`);
+      } else {
+        setDailyBonusMessage(`😢 ${result.message}`);
+      }
+      // Recharger les données
+      await loadData();
+      await checkWheelStatus();
+    } else {
+      alert(result.error || 'Erreur lors du lancement de la roue');
+    }
+    
+    setIsSpinning(false);
   };
 
   const formatDate = (timestamp: number) => {
@@ -83,6 +134,8 @@ export default function ChildPage() {
     : conversions.filter(opt => opt.category === selectedCategory);
 
   const canAfford = (option: ConversionOption) => points >= option.pointsRequired && points >= 0;
+  
+  const canDoTask = (task: TaskOption) => points <= task.pointsRequired; // points négatifs ou égaux à la tâche
 
   const categories = getConversionsByCategory(conversions);
 
@@ -123,8 +176,40 @@ export default function ChildPage() {
           </div>
         </div>
 
-        {/* History Button */}
-        <div className="flex justify-center mb-6">
+        {/* Daily Bonus Message */}
+        {dailyBonusMessage && (
+          <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl p-4 mb-6 shadow-xl text-center animate-bounce">
+            <p className="text-xl font-bold text-white">{dailyBonusMessage}</p>
+          </div>
+        )}
+
+        {/* Wheel of Fortune */}
+        <div className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl p-6 mb-8 shadow-xl text-center">
+          <h2 className="text-3xl font-bold text-white mb-4 flex items-center justify-center gap-2">
+            <RotateCw className="w-8 h-8" />
+            🎡 Roue de la chance
+          </h2>
+          <p className="text-white mb-4">
+            {wheelStatus.canUse 
+              ? '🎉 Tu peux lancer la roue ! Gagne 1, 5 ou 10 points, ou perds 1 point...'
+              : `⏳ Prochaine utilisation dans ${wheelStatus.daysUntilNextUse} jour${wheelStatus.daysUntilNextUse > 1 ? 's' : ''}`
+            }
+          </p>
+          <button
+            onClick={handleSpinWheel}
+            disabled={!wheelStatus.canUse || isSpinning}
+            className={`px-8 py-4 rounded-xl font-bold text-xl transition-all transform ${
+              wheelStatus.canUse && !isSpinning
+                ? 'bg-white text-purple-600 hover:scale-105 hover:shadow-2xl'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            {isSpinning ? '⏳ Lancement...' : wheelStatus.canUse ? '🎰 Lancer la roue !' : '🔒 Indisponible'}
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap justify-center gap-3 mb-6">
           <button
             onClick={() => setShowHistory(!showHistory)}
             className={`px-6 py-3 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 flex items-center gap-2 ${
@@ -135,6 +220,17 @@ export default function ChildPage() {
           >
             <History className="w-5 h-5" />
             {showHistory ? 'Masquer' : 'Voir'} l'historique
+          </button>
+          <button
+            onClick={() => setShowTasks(!showTasks)}
+            className={`px-6 py-3 rounded-2xl font-bold text-lg transition-all transform hover:scale-105 flex items-center gap-2 ${
+              showTasks
+                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-xl'
+                : 'bg-white text-gray-700 shadow-md hover:shadow-lg'
+            }`}
+          >
+            <ListTodo className="w-5 h-5" />
+            {showTasks ? 'Masquer' : 'Voir'} les tâches
           </button>
         </div>
 
@@ -195,6 +291,67 @@ export default function ChildPage() {
                       </div>
                     </div>
                   ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tasks Panel */}
+        {showTasks && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
+              📋 Tâches disponibles
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              Si tu as des points négatifs, tu peux faire ces tâches pour remonter !
+            </p>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tasks.length === 0 ? (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500 text-lg">Aucune tâche disponible pour le moment</p>
+                </div>
+              ) : (
+                tasks.map((task) => {
+                  const canDo = canDoTask(task);
+                  return (
+                    <div
+                      key={task.id}
+                      className={`relative rounded-2xl p-6 shadow-xl transform transition-all duration-300 hover:scale-105 ${
+                        canDo
+                          ? 'bg-gradient-to-br from-orange-50 to-red-50 border-4 border-orange-300'
+                          : 'bg-gray-200 opacity-60'
+                      }`}
+                    >
+                      {!canDo && (
+                        <div className="absolute top-2 right-2 bg-gray-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                          Pas assez de points négatifs
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <div className="text-6xl mb-4">{task.emoji}</div>
+                        <h3 className="text-xl font-bold mb-2 text-gray-800">{task.name}</h3>
+                        <p className="text-gray-600 mb-4 text-sm">{task.description}</p>
+                        <div className={`inline-block px-4 py-2 rounded-xl font-bold text-lg ${
+                          canDo
+                            ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white'
+                            : 'bg-gray-400 text-gray-700'
+                        }`}>
+                          {task.pointsRequired} points
+                        </div>
+                        {canDo && (
+                          <div className="mt-4">
+                            <div className="text-orange-600 font-semibold">
+                              ✓ Tu peux faire cette tâche !
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              (Demande à un adulte pour valider)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
