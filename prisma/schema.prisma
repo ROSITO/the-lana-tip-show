@@ -82,6 +82,17 @@ model BankAccount {
   @@map("bank_account")
 }
 
+model BankTransaction {
+  id        Int      @id @default(autoincrement())
+  type      String   // 'credit' or 'debit'
+  amount    Decimal  @db.Decimal(10, 2) // Montant en euros
+  reason    String   // Raison de la transaction
+  timestamp BigInt   // Timestamp de la transaction
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("bank_transactions")
+}
+
 model AdminPassword {
   id        Int      @id @default(autoincrement())
   password  String

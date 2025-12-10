@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw, Wallet } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance } from '@/lib/storage-db';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance, getBankTransactions, deleteBankTransaction, type BankTransaction } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -44,6 +44,10 @@ export default function AdminPage() {
   const [bankBalance, setBankBalance] = useState(0);
   const [showEditBank, setShowEditBank] = useState(false);
   const [editBankValue, setEditBankValue] = useState('');
+  const [editBankReason, setEditBankReason] = useState('');
+  const [editBankWithHistory, setEditBankWithHistory] = useState(false);
+  const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
+  const [showBankHistory, setShowBankHistory] = useState(false);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -70,6 +74,8 @@ export default function AdminPage() {
     setTasks(loadedTasks);
     const balance = await getBankBalance();
     setBankBalance(balance);
+    const loadedBankTransactions = await getBankTransactions();
+    setBankTransactions(loadedBankTransactions);
   };
 
   const handleAddPoints = async () => {
@@ -288,6 +294,8 @@ export default function AdminPage() {
 
   const handleEditBank = () => {
     setEditBankValue(bankBalance.toFixed(2));
+    setEditBankReason('');
+    setEditBankWithHistory(false);
     setShowEditBank(true);
   };
 
@@ -298,18 +306,38 @@ export default function AdminPage() {
       return;
     }
     
-    if (!confirm(`Êtes-vous sûr de vouloir modifier le solde de ${bankBalance.toFixed(2)}€ à ${newBalance.toFixed(2)}€ ?`)) {
+    const confirmMessage = editBankWithHistory
+      ? `Êtes-vous sûr de vouloir modifier le solde de ${bankBalance.toFixed(2)}€ à ${newBalance.toFixed(2)}€ ?\n\nUne transaction sera créée dans l'historique.`
+      : `Êtes-vous sûr de vouloir modifier le solde de ${bankBalance.toFixed(2)}€ à ${newBalance.toFixed(2)}€ ?\n\nCette modification ne créera pas de transaction dans l'historique.`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
     
-    const success = await setBankBalance(newBalance);
+    const success = await setBankBalance(newBalance, editBankWithHistory, editBankReason || undefined);
     if (success) {
       setShowEditBank(false);
       setEditBankValue('');
+      setEditBankReason('');
+      setEditBankWithHistory(false);
       await loadData();
       alert(`✅ Solde modifié avec succès : ${bankBalance.toFixed(2)}€ → ${newBalance.toFixed(2)}€`);
     } else {
       alert('Erreur lors de la modification du solde');
+    }
+  };
+
+  const handleDeleteBankTransaction = async (transactionId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette transaction bancaire de l\'historique ?')) {
+      return;
+    }
+    
+    const success = await deleteBankTransaction(transactionId);
+    if (success) {
+      await loadData();
+      alert('✅ Transaction bancaire supprimée avec succès');
+    } else {
+      alert('Erreur lors de la suppression de la transaction');
     }
   };
 
@@ -357,7 +385,7 @@ export default function AdminPage() {
                 </button>
               </div>
               {showEditBank ? (
-                <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center gap-3 w-full">
                   <input
                     type="number"
                     step="0.01"
@@ -366,6 +394,27 @@ export default function AdminPage() {
                     className="text-4xl font-bold bg-white/20 border-2 border-white/50 rounded-xl px-4 py-2 text-center w-40 focus:outline-none focus:border-white"
                     autoFocus
                   />
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="withHistory"
+                      checked={editBankWithHistory}
+                      onChange={(e) => setEditBankWithHistory(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <label htmlFor="withHistory" className="text-sm opacity-90">
+                      Créer une transaction dans l'historique
+                    </label>
+                  </div>
+                  {editBankWithHistory && (
+                    <input
+                      type="text"
+                      value={editBankReason}
+                      onChange={(e) => setEditBankReason(e.target.value)}
+                      placeholder="Raison (optionnel)"
+                      className="w-64 px-3 py-2 bg-white/20 border-2 border-white/50 rounded-lg text-sm focus:outline-none focus:border-white"
+                    />
+                  )}
                   <div className="flex gap-3">
                     <button
                       onClick={handleSaveBank}
@@ -377,17 +426,69 @@ export default function AdminPage() {
                       onClick={() => {
                         setShowEditBank(false);
                         setEditBankValue('');
+                        setEditBankReason('');
+                        setEditBankWithHistory(false);
                       }}
                       className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-xl font-semibold transition-all"
                     >
                       ✕ Annuler
                     </button>
                   </div>
+                  {!editBankWithHistory && (
+                    <p className="text-xs opacity-80">⚠️ Cette modification ne créera pas de transaction dans l'historique</p>
+                  )}
                 </div>
               ) : (
-                <p className="text-4xl font-bold">{bankBalance.toFixed(2)}€</p>
+                <>
+                  <p className="text-4xl font-bold">{bankBalance.toFixed(2)}€</p>
+                  <button
+                    onClick={() => setShowBankHistory(!showBankHistory)}
+                    className="mt-2 px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition-all"
+                  >
+                    {showBankHistory ? 'Masquer' : 'Voir'} l'historique
+                  </button>
+                </>
               )}
             </div>
+            {/* Bank History */}
+            {showBankHistory && !showEditBank && (
+              <div className="mt-4 pt-4 border-t border-white/30">
+                <h3 className="text-lg font-semibold mb-3">Historique bancaire</h3>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {bankTransactions.length === 0 ? (
+                    <p className="text-sm opacity-80 text-center py-4">Aucune transaction bancaire</p>
+                  ) : (
+                    bankTransactions.slice(0, 5).map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className={`flex items-center justify-between p-2 rounded-lg text-sm ${
+                          transaction.type === 'credit' ? 'bg-green-500/30' : 'bg-red-500/30'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {transaction.type === 'credit' ? (
+                            <TrendingUp className="w-4 h-4" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4" />
+                          )}
+                          <span className="font-semibold">{transaction.reason}</span>
+                        </div>
+                        <span className={`font-bold ${
+                          transaction.type === 'credit' ? 'text-green-200' : 'text-red-200'
+                        }`}>
+                          {transaction.type === 'credit' ? '+' : '-'}{transaction.amount.toFixed(2)}€
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {bankTransactions.length > 5 && (
+                  <p className="text-xs opacity-80 text-center mt-2">
+                    ... et {bankTransactions.length - 5} autre(s) transaction(s)
+                  </p>
+                )}
+              </div>
+            )}
             {showEditPoints ? (
               <div className="flex flex-col items-center gap-4">
                 <input
@@ -456,7 +557,7 @@ export default function AdminPage() {
         {showHistory && (
           <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Historique des transactions</h2>
+              <h2 className="text-2xl font-bold">Historique des transactions (points)</h2>
               <button
                 onClick={handleResetWheel}
                 className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 transition-all"
@@ -498,6 +599,63 @@ export default function AdminPage() {
                       </p>
                       <button
                         onClick={() => handleDeleteTransaction(transaction.id)}
+                        className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                        title="Supprimer cette transaction"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Bank History Panel */}
+        {showBankHistory && !showEditBank && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Historique des transactions bancaires</h2>
+              <button
+                onClick={() => setShowBankHistory(false)}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl font-semibold transition-all"
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {bankTransactions.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Aucune transaction bancaire pour le moment</p>
+              ) : (
+                bankTransactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className={`flex items-center justify-between p-4 rounded-xl ${
+                      transaction.type === 'credit' ? 'bg-green-50' : 'bg-red-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {transaction.type === 'credit' ? (
+                        <TrendingUp className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <TrendingDown className="w-6 h-6 text-red-600" />
+                      )}
+                      <div>
+                        <p className="font-semibold">{transaction.reason}</p>
+                        <p className="text-sm text-gray-500">{formatDate(transaction.timestamp)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p
+                        className={`text-xl font-bold ${
+                          transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        {transaction.type === 'credit' ? '+' : '-'}{transaction.amount.toFixed(2)}€
+                      </p>
+                      <button
+                        onClick={() => handleDeleteBankTransaction(transaction.id)}
                         className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-all"
                         title="Supprimer cette transaction"
                       >

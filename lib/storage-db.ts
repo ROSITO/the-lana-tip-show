@@ -386,18 +386,53 @@ export async function getBankBalance(): Promise<number> {
   }
 }
 
-export async function setBankBalance(balance: number): Promise<boolean> {
+export async function setBankBalance(balance: number, createTransaction: boolean = false, reason?: string): Promise<boolean> {
   try {
     const response = await fetch('/api/bank', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ balance }),
+      body: JSON.stringify({ balance, createTransaction, reason }),
     });
     return response.ok;
   } catch (error) {
     console.error('Erreur setBankBalance:', error);
+    return false;
+  }
+}
+
+// Transactions bancaires
+export interface BankTransaction {
+  id: string;
+  type: 'credit' | 'debit';
+  amount: number;
+  reason: string;
+  timestamp: number;
+}
+
+export async function getBankTransactions(): Promise<BankTransaction[]> {
+  try {
+    const response = await fetch('/api/bank/transactions');
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur getBankTransactions:', error);
+    return [];
+  }
+}
+
+export async function deleteBankTransaction(transactionId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/bank/transactions?id=${transactionId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur deleteBankTransaction:', error);
     return false;
   }
 }

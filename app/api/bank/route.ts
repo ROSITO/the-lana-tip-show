@@ -23,13 +23,13 @@ export async function GET() {
   }
 }
 
-// PUT - Modifier le solde du compte banque
+// PUT - Modifier le solde du compte banque (avec ou sans historique)
 export async function PUT(request: NextRequest) {
   try {
     await initDatabase();
     
     const body = await request.json();
-    const { balance } = body;
+    const { balance, createTransaction } = body;
 
     if (balance === undefined || balance === null) {
       return NextResponse.json({ error: 'Solde manquant' }, { status: 400 });
@@ -45,6 +45,9 @@ export async function PUT(request: NextRequest) {
       orderBy: { createdAt: 'desc' }
     });
 
+    const oldBalance = account ? Number(account.balance) : 0;
+    const difference = newBalance - oldBalance;
+
     if (account) {
       // Mettre à jour le compte
       account = await prisma.bankAccount.update({
@@ -55,6 +58,18 @@ export async function PUT(request: NextRequest) {
       // Créer un nouveau compte
       account = await prisma.bankAccount.create({
         data: { balance: newBalance }
+      });
+    }
+
+    // Créer une transaction dans l'historique si demandé
+    if (createTransaction && difference !== 0) {
+      await prisma.bankTransaction.create({
+        data: {
+          type: difference > 0 ? 'credit' : 'debit',
+          amount: Math.abs(difference),
+          reason: body.reason || (difference > 0 ? 'Ajout manuel' : 'Retrait manuel'),
+          timestamp: BigInt(Date.now())
+        }
       });
     }
 
@@ -106,6 +121,16 @@ export async function POST(request: NextRequest) {
         data: { balance: newBalance }
       });
     }
+
+    // Créer une transaction dans l'historique
+    await prisma.bankTransaction.create({
+      data: {
+        type: 'credit',
+        amount: addAmount,
+        reason: body.reason || 'Conversion de points',
+        timestamp: BigInt(Date.now())
+      }
+    });
 
     return NextResponse.json({ success: true, balance: Number(account.balance) });
   } catch (error: any) {
