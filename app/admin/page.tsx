@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw, Wallet } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance, getBankTransactions, deleteBankTransaction, type BankTransaction } from '@/lib/storage-db';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance as setBankBalanceAPI, getBankTransactions, deleteBankTransaction, type BankTransaction } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function AdminPage() {
   const [passwordError, setPasswordError] = useState('');
   const [showEditPoints, setShowEditPoints] = useState(false);
   const [editPointsValue, setEditPointsValue] = useState('');
-  const [bankBalance, setBankBalance] = useState(0);
+  const [bankBalance, setBankBalanceState] = useState(0);
   const [showEditBank, setShowEditBank] = useState(false);
   const [editBankValue, setEditBankValue] = useState('');
   const [editBankReason, setEditBankReason] = useState('');
@@ -73,7 +73,7 @@ export default function AdminPage() {
     const loadedTasks = await getTasks();
     setTasks(loadedTasks);
     const balance = await getBankBalance();
-    setBankBalance(balance);
+    setBankBalanceState(balance);
     const loadedBankTransactions = await getBankTransactions();
     setBankTransactions(loadedBankTransactions);
   };
@@ -314,7 +314,7 @@ export default function AdminPage() {
       return;
     }
     
-    const success = await setBankBalance(
+    const success = await setBankBalanceAPI(
       newBalance,
       editBankWithHistory,
       editBankReason.trim() || undefined
