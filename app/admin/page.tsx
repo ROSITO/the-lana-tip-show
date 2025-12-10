@@ -1049,8 +1049,7 @@ export default function AdminPage() {
                         description: newFinancialProduct.description,
                         emoji: newFinancialProduct.emoji,
                         interestRate: parseFloat(newFinancialProduct.interestRate),
-                        durationDays: parseInt(newFinancialProduct.durationDays),
-                        active: true
+                        durationDays: parseInt(newFinancialProduct.durationDays)
                       });
                       if (success) {
                         setNewFinancialProduct({
