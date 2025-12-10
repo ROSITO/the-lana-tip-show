@@ -367,4 +367,64 @@ export async function spinWheel(): Promise<WheelOfFortuneResult> {
   }
 }
 
+// Banque
+export interface BankAccount {
+  balance: number;
+}
+
+export async function getBankBalance(): Promise<number> {
+  try {
+    const response = await fetch('/api/bank');
+    if (!response.ok) {
+      return 0;
+    }
+    const data = await response.json();
+    return data.balance || 0;
+  } catch (error) {
+    console.error('Erreur getBankBalance:', error);
+    return 0;
+  }
+}
+
+export async function setBankBalance(balance: number): Promise<boolean> {
+  try {
+    const response = await fetch('/api/bank', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ balance }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur setBankBalance:', error);
+    return false;
+  }
+}
+
+// Échange de points contre conversion
+export interface ExchangeResult {
+  success: boolean;
+  totalPoints?: number;
+  message?: string;
+  error?: string;
+}
+
+export async function exchangePoints(conversionId: string): Promise<ExchangeResult> {
+  try {
+    const response = await fetch('/api/exchange', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ conversionId }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur exchangePoints:', error);
+    return { success: false, error: 'Erreur lors de l\'échange' };
+  }
+}
+
 

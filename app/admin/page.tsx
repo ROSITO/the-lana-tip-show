@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune } from '@/lib/storage-db';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw, Wallet } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -41,6 +41,9 @@ export default function AdminPage() {
   const [passwordError, setPasswordError] = useState('');
   const [showEditPoints, setShowEditPoints] = useState(false);
   const [editPointsValue, setEditPointsValue] = useState('');
+  const [bankBalance, setBankBalance] = useState(0);
+  const [showEditBank, setShowEditBank] = useState(false);
+  const [editBankValue, setEditBankValue] = useState('');
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -65,6 +68,8 @@ export default function AdminPage() {
     setConversions(loadedConversions);
     const loadedTasks = await getTasks();
     setTasks(loadedTasks);
+    const balance = await getBankBalance();
+    setBankBalance(balance);
   };
 
   const handleAddPoints = async () => {
@@ -281,6 +286,33 @@ export default function AdminPage() {
     }
   };
 
+  const handleEditBank = () => {
+    setEditBankValue(bankBalance.toFixed(2));
+    setShowEditBank(true);
+  };
+
+  const handleSaveBank = async () => {
+    const newBalance = parseFloat(editBankValue);
+    if (isNaN(newBalance)) {
+      alert('Valeur invalide');
+      return;
+    }
+    
+    if (!confirm(`Êtes-vous sûr de vouloir modifier le solde de ${bankBalance.toFixed(2)}€ à ${newBalance.toFixed(2)}€ ?`)) {
+      return;
+    }
+    
+    const success = await setBankBalance(newBalance);
+    if (success) {
+      setShowEditBank(false);
+      setEditBankValue('');
+      await loadData();
+      alert(`✅ Solde modifié avec succès : ${bankBalance.toFixed(2)}€ → ${newBalance.toFixed(2)}€`);
+    } else {
+      alert('Erreur lors de la modification du solde');
+    }
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
@@ -310,6 +342,51 @@ export default function AdminPage() {
               >
                 <Edit2 className="w-5 h-5" />
               </button>
+            </div>
+            {/* Bank Account Display */}
+            <div className="mt-6 pt-6 border-t border-white/30">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <Wallet className="w-6 h-6" />
+                <p className="text-xl">Compte banque</p>
+                <button
+                  onClick={handleEditBank}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                  title="Modifier le solde"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              </div>
+              {showEditBank ? (
+                <div className="flex flex-col items-center gap-3">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editBankValue}
+                    onChange={(e) => setEditBankValue(e.target.value)}
+                    className="text-4xl font-bold bg-white/20 border-2 border-white/50 rounded-xl px-4 py-2 text-center w-40 focus:outline-none focus:border-white"
+                    autoFocus
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleSaveBank}
+                      className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-xl font-semibold transition-all"
+                    >
+                      ✓ Sauvegarder
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowEditBank(false);
+                        setEditBankValue('');
+                      }}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-xl font-semibold transition-all"
+                    >
+                      ✕ Annuler
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-4xl font-bold">{bankBalance.toFixed(2)}€</p>
+              )}
             </div>
             {showEditPoints ? (
               <div className="flex flex-col items-center gap-4">

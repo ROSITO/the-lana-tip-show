@@ -73,6 +73,15 @@ model WheelOfFortune {
   @@map("wheel_of_fortune")
 }
 
+model BankAccount {
+  id        Int      @id @default(autoincrement())
+  balance   Decimal  @default(0) @db.Decimal(10, 2) // Solde en euros (ex: 12.50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("bank_account")
+}
+
 model AdminPassword {
   id        Int      @id @default(autoincrement())
   password  String
