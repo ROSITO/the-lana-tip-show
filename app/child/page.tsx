@@ -54,20 +54,23 @@ export default function ChildPage() {
       loadData();
     }, 2000);
     
-    // Rafraîchir les investissements toutes les 30 secondes pour voir la croissance
-    const investmentInterval = setInterval(() => {
-      if (showFinancialProducts) {
-        loadData();
-      }
-    }, 30000);
-    
     return () => {
       clearTimeout(timeout);
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
-      clearInterval(investmentInterval);
     };
   }, [router]);
+
+  // Rafraîchir les investissements toutes les 30 secondes pour voir la croissance
+  useEffect(() => {
+    if (!showFinancialProducts) return;
+    
+    const investmentInterval = setInterval(() => {
+      loadData();
+    }, 30000);
+    
+    return () => clearInterval(investmentInterval);
+  }, [showFinancialProducts]);
 
   const loadData = async () => {
     const data = await getPointsData();
