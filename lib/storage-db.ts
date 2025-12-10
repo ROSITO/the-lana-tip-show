@@ -462,4 +462,121 @@ export async function exchangePoints(conversionId: string): Promise<ExchangeResu
   }
 }
 
+// Produits financiers
+export interface FinancialProduct {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  interestRate: number;
+  durationDays: number;
+  active: boolean;
+}
+
+export async function getFinancialProducts(): Promise<FinancialProduct[]> {
+  try {
+    const response = await fetch('/api/financial-products');
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur getFinancialProducts:', error);
+    return [];
+  }
+}
+
+export async function addFinancialProduct(product: Omit<FinancialProduct, 'id' | 'active'>): Promise<boolean> {
+  try {
+    const response = await fetch('/api/financial-products', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(product),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur addFinancialProduct:', error);
+    return false;
+  }
+}
+
+export async function deleteFinancialProduct(productId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/financial-products?id=${productId}`, {
+      method: 'DELETE',
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur deleteFinancialProduct:', error);
+    return false;
+  }
+}
+
+// Investissements
+export interface Investment {
+  id: string;
+  productId: string;
+  productName: string;
+  productEmoji: string;
+  initialAmount: number;
+  currentAmount: number;
+  interestEarned: number;
+  startDate: string;
+  maturityDate: string;
+  daysElapsed: number;
+  totalDays: number;
+  progress: number;
+}
+
+export async function getInvestments(): Promise<Investment[]> {
+  try {
+    const response = await fetch('/api/investments');
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur getInvestments:', error);
+    return [];
+  }
+}
+
+export async function createInvestment(productId: string, amount: number): Promise<{ success: boolean; error?: string; newBalance?: number }> {
+  try {
+    const response = await fetch('/api/investments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ productId, amount }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur createInvestment:', error);
+    return { success: false, error: 'Erreur lors de la création de l\'investissement' };
+  }
+}
+
+export async function releaseInvestment(investmentId: string): Promise<{ success: boolean; finalAmount?: number; interestEarned?: number; newBalance?: number }> {
+  try {
+    const response = await fetch('/api/investments', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ investmentId }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erreur releaseInvestment:', error);
+    return { success: false };
+  }
+}
+
 

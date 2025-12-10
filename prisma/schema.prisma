@@ -102,3 +102,35 @@ model AdminPassword {
   @@map("admin_password")
 }
 
+model FinancialProduct {
+  id          Int      @id @default(autoincrement())
+  name        String   // Ex: "ETF S&P 500", "Bitcoin", "Livret A"
+  description String
+  emoji       String   // Emoji pour l'affichage
+  interestRate Decimal @db.Decimal(5, 2) @map("interest_rate") // Taux d'intérêt annuel en % (ex: 5.50)
+  durationDays Int    @map("duration_days") // Durée minimale en jours
+  active      Boolean  @default(true) // Si le produit est disponible
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  investments Investment[]
+
+  @@map("financial_products")
+}
+
+model Investment {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @map("product_id")
+  amount        Decimal  @db.Decimal(10, 2) // Montant investi
+  initialAmount Decimal  @db.Decimal(10, 2) @map("initial_amount") // Montant initial (pour calcul)
+  startDate     DateTime @map("start_date") // Date de début
+  maturityDate  DateTime @map("maturity_date") // Date d'échéance
+  status        String   @default("active") // 'active' or 'completed'
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  product       FinancialProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("investments")
+}
+

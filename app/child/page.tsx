@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Gift, Coins, Star, Home, TrendingUp, TrendingDown, History, ListTodo, Zap, RotateCw, Wallet } from 'lucide-react';
-import { getPointsData, getConversions, type ConversionOption, type PointTransaction, getTasks, type TaskOption, checkDailyBonus, getWheelStatus, spinWheel, type WheelOfFortuneResult, getBankBalance, exchangePoints } from '@/lib/storage-db';
+import { Sparkles, Gift, Coins, Star, Home, TrendingUp, TrendingDown, History, ListTodo, Zap, RotateCw, Wallet, DollarSign, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import { getPointsData, getConversions, type ConversionOption, type PointTransaction, getTasks, type TaskOption, checkDailyBonus, getWheelStatus, spinWheel, type WheelOfFortuneResult, getBankBalance, exchangePoints, getFinancialProducts, type FinancialProduct, getInvestments, createInvestment, releaseInvestment, type Investment } from '@/lib/storage-db';
 import { getConversionsByCategory } from '@/lib/conversions';
 
 export default function ChildPage() {
@@ -19,6 +19,11 @@ export default function ChildPage() {
   const [wheelStatus, setWheelStatus] = useState<{ canUse: boolean; daysUntilNextUse: number }>({ canUse: false, daysUntilNextUse: 0 });
   const [isSpinning, setIsSpinning] = useState(false);
   const [bankBalance, setBankBalance] = useState(0);
+  const [showFinancialProducts, setShowFinancialProducts] = useState(false);
+  const [financialProducts, setFinancialProducts] = useState<FinancialProduct[]>([]);
+  const [investments, setInvestments] = useState<Investment[]>([]);
+  const [selectedProductForInvestment, setSelectedProductForInvestment] = useState<string | null>(null);
+  const [investmentAmount, setInvestmentAmount] = useState('');
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -49,10 +54,18 @@ export default function ChildPage() {
       loadData();
     }, 2000);
     
+    // Rafraîchir les investissements toutes les 30 secondes pour voir la croissance
+    const investmentInterval = setInterval(() => {
+      if (showFinancialProducts) {
+        loadData();
+      }
+    }, 30000);
+    
     return () => {
       clearTimeout(timeout);
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
+      clearInterval(investmentInterval);
     };
   }, [router]);
 
@@ -66,6 +79,10 @@ export default function ChildPage() {
     setTasks(loadedTasks);
     const balance = await getBankBalance();
     setBankBalance(balance);
+    const loadedProducts = await getFinancialProducts();
+    setFinancialProducts(loadedProducts.filter(p => p.active));
+    const loadedInvestments = await getInvestments();
+    setInvestments(loadedInvestments);
   };
 
   const checkDailyBonusOnLoad = async () => {
@@ -190,8 +207,203 @@ export default function ChildPage() {
             <p className="text-lg md:text-xl mt-3 opacity-90">
               💰 L'argent que tu as gagné en échangeant tes points !
             </p>
+            <button
+              onClick={() => setShowFinancialProducts(!showFinancialProducts)}
+              className="mt-4 px-6 py-3 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all mx-auto"
+            >
+              <DollarSign className="w-5 h-5" />
+              {showFinancialProducts ? 'Masquer' : 'Voir'} les produits financiers
+            </button>
           </div>
         </div>
+
+        {/* Financial Products Panel */}
+        {showFinancialProducts && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <h2 className="text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+              💰 Produits financiers
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              Investis ton argent pour le faire grandir ! Plus tu laisses longtemps, plus tu gagnes ! 📈
+            </p>
+
+            {/* Active Investments */}
+            {investments.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold mb-4 text-gray-800">📊 Mes investissements</h3>
+                <div className="space-y-4">
+                  {investments.map((investment) => {
+                    const daysRemaining = Math.max(0, investment.totalDays - investment.daysElapsed);
+                    const canRelease = daysRemaining === 0;
+                    return (
+                      <div
+                        key={investment.id}
+                        className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-200"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="text-4xl">{investment.productEmoji}</div>
+                            <div>
+                              <p className="font-bold text-xl text-gray-800">{investment.productName}</p>
+                              <p className="text-sm text-gray-600">
+                                Investi le {new Date(investment.startDate).toLocaleDateString('fr-FR')}
+                              </p>
+                            </div>
+                          </div>
+                          {canRelease && (
+                            <button
+                              onClick={async () => {
+                                const result = await releaseInvestment(investment.id);
+                                if (result.success) {
+                                  alert(`🎉 Investissement libéré ! Tu as gagné ${result.interestEarned?.toFixed(2)}€ d'intérêts !`);
+                                  await loadData();
+                                } else {
+                                  alert('Erreur lors de la libération');
+                                }
+                              }}
+                              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-all"
+                            >
+                              Libérer 💰
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid md:grid-cols-3 gap-4 mb-4">
+                          <div className="bg-white rounded-lg p-4">
+                            <p className="text-sm text-gray-600 mb-1">Montant initial</p>
+                            <p className="text-2xl font-bold text-gray-800">{investment.initialAmount.toFixed(2)}€</p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4">
+                            <p className="text-sm text-gray-600 mb-1">Valeur actuelle</p>
+                            <p className="text-2xl font-bold text-green-600">{investment.currentAmount.toFixed(2)}€</p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4">
+                            <p className="text-sm text-gray-600 mb-1">Intérêts gagnés</p>
+                            <p className="text-2xl font-bold text-emerald-600">+{investment.interestEarned.toFixed(2)}€</p>
+                          </div>
+                        </div>
+                        <div className="mb-2">
+                          <div className="flex justify-between text-sm text-gray-600 mb-1">
+                            <span>Progression</span>
+                            <span>{investment.daysElapsed} / {investment.totalDays} jours</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-3">
+                            <div
+                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-300"
+                              style={{ width: `${investment.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                        {!canRelease && (
+                          <p className="text-sm text-gray-600 text-center mt-2">
+                            ⏳ Encore {daysRemaining} jour{daysRemaining > 1 ? 's' : ''} avant la libération
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Available Products */}
+            <div>
+              <h3 className="text-2xl font-bold mb-4 text-gray-800">📈 Produits disponibles</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {financialProducts.length === 0 ? (
+                  <div className="col-span-full text-center py-8">
+                    <p className="text-gray-500 text-lg">Aucun produit financier disponible pour le moment</p>
+                  </div>
+                ) : (
+                  financialProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-200 hover:border-green-400 transition-all"
+                    >
+                      <div className="text-center mb-4">
+                        <div className="text-6xl mb-2">{product.emoji}</div>
+                        <h4 className="text-xl font-bold text-gray-800 mb-2">{product.name}</h4>
+                        <p className="text-sm text-gray-600 mb-4">{product.description}</p>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Taux d'intérêt:</span>
+                          <span className="font-bold text-green-600">{product.interestRate}% / an</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Durée:</span>
+                          <span className="font-bold">{product.durationDays} jours</span>
+                        </div>
+                      </div>
+                      {selectedProductForInvestment === product.id ? (
+                        <div className="space-y-3">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max={bankBalance}
+                            value={investmentAmount}
+                            onChange={(e) => setInvestmentAmount(e.target.value)}
+                            placeholder="Montant à investir"
+                            className="w-full px-4 py-2 rounded-lg border-2 border-green-300 focus:border-green-500 focus:outline-none"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={async () => {
+                                const amount = parseFloat(investmentAmount);
+                                if (isNaN(amount) || amount <= 0) {
+                                  alert('Montant invalide');
+                                  return;
+                                }
+                                if (amount > bankBalance) {
+                                  alert('Solde insuffisant');
+                                  return;
+                                }
+                                const result = await createInvestment(product.id, amount);
+                                if (result.success) {
+                                  alert(`✅ Investissement créé ! Ton argent va grandir pendant ${product.durationDays} jours !`);
+                                  setSelectedProductForInvestment(null);
+                                  setInvestmentAmount('');
+                                  await loadData();
+                                } else {
+                                  alert(result.error || 'Erreur lors de la création de l\'investissement');
+                                }
+                              }}
+                              className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold transition-all"
+                            >
+                              Investir 💰
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedProductForInvestment(null);
+                                setInvestmentAmount('');
+                              }}
+                              className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-semibold transition-all"
+                            >
+                              Annuler
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (bankBalance <= 0) {
+                              alert('Tu n\'as pas assez d\'argent pour investir');
+                              return;
+                            }
+                            setSelectedProductForInvestment(product.id);
+                          }}
+                          className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg font-bold transition-all transform hover:scale-105"
+                        >
+                          Investir maintenant 📈
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Daily Bonus Message */}
         {dailyBonusMessage && (

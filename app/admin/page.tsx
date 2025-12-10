@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw, Wallet } from 'lucide-react';
-import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance as setBankBalanceAPI, getBankTransactions, deleteBankTransaction, type BankTransaction } from '@/lib/storage-db';
+import { Plus, Minus, LogOut, TrendingUp, TrendingDown, History, Gift, Trash2, X, Key, ListTodo, Edit2, RotateCw, Wallet, TrendingUp as TrendingUpIcon, DollarSign } from 'lucide-react';
+import { getPointsData, addPoints, removePoints, type PointTransaction, getConversions, addConversion, deleteConversion, type ConversionOption, getAdminPassword, setAdminPassword, verifyAdminPassword, getTasks, addTask, deleteTask, type TaskOption, setPointsDirectly, deleteTransaction, resetWheelOfFortune, getBankBalance, setBankBalance as setBankBalanceAPI, getBankTransactions, deleteBankTransaction, type BankTransaction, getFinancialProducts, addFinancialProduct, deleteFinancialProduct, type FinancialProduct } from '@/lib/storage-db';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -48,6 +48,16 @@ export default function AdminPage() {
   const [editBankWithHistory, setEditBankWithHistory] = useState(false);
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>([]);
   const [showBankHistory, setShowBankHistory] = useState(false);
+  const [financialProducts, setFinancialProducts] = useState<FinancialProduct[]>([]);
+  const [showFinancialProducts, setShowFinancialProducts] = useState(false);
+  const [showAddFinancialProduct, setShowAddFinancialProduct] = useState(false);
+  const [newFinancialProduct, setNewFinancialProduct] = useState({
+    name: '',
+    description: '',
+    emoji: '📈',
+    interestRate: '',
+    durationDays: '',
+  });
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -76,6 +86,8 @@ export default function AdminPage() {
     setBankBalanceState(balance);
     const loadedBankTransactions = await getBankTransactions();
     setBankTransactions(loadedBankTransactions);
+    const loadedFinancialProducts = await getFinancialProducts();
+    setFinancialProducts(loadedFinancialProducts);
   };
 
   const handleAddPoints = async () => {
@@ -553,6 +565,13 @@ export default function AdminPage() {
                 <Key className="w-5 h-5" />
                 Mot de passe
               </button>
+              <button
+                onClick={() => setShowFinancialProducts(!showFinancialProducts)}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-semibold flex items-center gap-2 transition-all"
+              >
+                <DollarSign className="w-5 h-5" />
+                Produits financiers
+              </button>
             </div>
           </div>
         </div>
@@ -922,6 +941,180 @@ export default function AdminPage() {
                     </div>
                     <button
                       onClick={() => handleDeleteConversion(conversion.id)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                      Supprimer
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Financial Products Panel */}
+        {showFinancialProducts && (
+          <div className="bg-white rounded-2xl p-6 mb-8 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Gestion des produits financiers</h2>
+              <button
+                onClick={() => setShowAddFinancialProduct(!showAddFinancialProduct)}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-green-600 hover:to-emerald-600 transition-all"
+              >
+                <Plus className="w-5 h-5" />
+                Ajouter un produit
+              </button>
+            </div>
+
+            {/* Add Financial Product Form */}
+            {showAddFinancialProduct && (
+              <div className="bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl p-6 mb-6 border-2 border-green-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-800">Nouveau produit financier</h3>
+                  <button
+                    onClick={() => setShowAddFinancialProduct(false)}
+                    className="text-gray-600 hover:text-gray-800"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={newFinancialProduct.name}
+                      onChange={(e) => setNewFinancialProduct({ ...newFinancialProduct, name: e.target.value })}
+                      placeholder="Ex: ETF S&P 500, Bitcoin, Livret A"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Emoji</label>
+                    <input
+                      type="text"
+                      value={newFinancialProduct.emoji}
+                      onChange={(e) => setNewFinancialProduct({ ...newFinancialProduct, emoji: e.target.value })}
+                      placeholder="Ex: 📈"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-green-500 focus:outline-none text-2xl"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Taux d'intérêt annuel (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newFinancialProduct.interestRate}
+                      onChange={(e) => setNewFinancialProduct({ ...newFinancialProduct, interestRate: e.target.value })}
+                      placeholder="Ex: 5.50"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-green-500 focus:outline-none"
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-2">Durée minimale (jours)</label>
+                    <input
+                      type="number"
+                      value={newFinancialProduct.durationDays}
+                      onChange={(e) => setNewFinancialProduct({ ...newFinancialProduct, durationDays: e.target.value })}
+                      placeholder="Ex: 30"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-green-500 focus:outline-none"
+                      min="1"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-700 font-semibold mb-2">Description</label>
+                    <input
+                      type="text"
+                      value={newFinancialProduct.description}
+                      onChange={(e) => setNewFinancialProduct({ ...newFinancialProduct, description: e.target.value })}
+                      placeholder="Ex: Investis dans un ETF qui suit l'indice S&P 500"
+                      className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-green-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (
+                      newFinancialProduct.name.trim() &&
+                      newFinancialProduct.description.trim() &&
+                      newFinancialProduct.interestRate &&
+                      newFinancialProduct.durationDays
+                    ) {
+                      const success = await addFinancialProduct({
+                        name: newFinancialProduct.name,
+                        description: newFinancialProduct.description,
+                        emoji: newFinancialProduct.emoji,
+                        interestRate: parseFloat(newFinancialProduct.interestRate),
+                        durationDays: parseInt(newFinancialProduct.durationDays),
+                        active: true
+                      });
+                      if (success) {
+                        setNewFinancialProduct({
+                          name: '',
+                          description: '',
+                          emoji: '📈',
+                          interestRate: '',
+                          durationDays: '',
+                        });
+                        setShowAddFinancialProduct(false);
+                        await loadData();
+                        alert('✅ Produit financier créé avec succès !');
+                      } else {
+                        alert('Erreur lors de la création du produit');
+                      }
+                    }
+                  }}
+                  className="mt-4 w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl font-bold text-lg hover:from-green-600 hover:to-emerald-600 transition-all transform hover:scale-105"
+                >
+                  Créer le produit financier 💰
+                </button>
+              </div>
+            )}
+
+            {/* Financial Products List */}
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {financialProducts.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Aucun produit financier pour le moment</p>
+              ) : (
+                financialProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl">{product.emoji}</div>
+                      <div>
+                        <p className="font-bold text-lg text-gray-800">{product.name}</p>
+                        <p className="text-sm text-gray-600">{product.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm font-semibold text-green-600">
+                            {product.interestRate}% / an
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            • Durée: {product.durationDays} jours
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded ${product.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                            {product.active ? 'Actif' : 'Inactif'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (confirm(`Êtes-vous sûr de vouloir supprimer le produit "${product.name}" ?`)) {
+                          const success = await deleteFinancialProduct(product.id);
+                          if (success) {
+                            await loadData();
+                            alert('✅ Produit financier supprimé avec succès');
+                          } else {
+                            alert('Erreur lors de la suppression');
+                          }
+                        }
+                      }}
                       className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all"
                     >
                       <Trash2 className="w-5 h-5" />
