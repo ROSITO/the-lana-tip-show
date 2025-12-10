@@ -314,7 +314,11 @@ export default function AdminPage() {
       return;
     }
     
-    const success = await setBankBalance(newBalance, editBankWithHistory, editBankReason || undefined);
+    const success = await setBankBalance(
+      newBalance,
+      editBankWithHistory,
+      editBankReason.trim() || undefined
+    );
     if (success) {
       setShowEditBank(false);
       setEditBankValue('');
