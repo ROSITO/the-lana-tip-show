@@ -85,10 +85,20 @@ export async function POST(request: NextRequest) {
             data: { balance: newBalance }
           });
         } else {
-          await prisma.bankAccount.create({
+          bankAccount = await prisma.bankAccount.create({
             data: { balance: newBalance }
           });
         }
+
+        // Créer une transaction bancaire dans l'historique
+        await prisma.bankTransaction.create({
+          data: {
+            type: 'credit',
+            amount: amount,
+            reason: `Échange: ${conversion.name}`,
+            timestamp: BigInt(Date.now())
+          }
+        });
       }
     }
 
